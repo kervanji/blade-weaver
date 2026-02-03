@@ -1,0 +1,24 @@
+{
+  "name": "Blade Weaver: The Eternal Smith",
+  "short_name": "Blade Weaver",
+  "description": "لعبة الحداد الأسطوري - اصنع السيوف وخض المعارك",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ffd700",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2361/2361730.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2361/2361730.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

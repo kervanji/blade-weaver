@@ -1,0 +1,1584 @@
+/* =====================================================
+   BLADE WEAVER - The Eternal Smith
+   Premium Dark Fantasy Design System
+   ===================================================== */
+
+/* CSS Variables - Design Tokens */
+:root {
+    /* Colors */
+    --color-bg-dark: #0a0a0f;
+    --color-bg-card: #12121a;
+    --color-bg-glass: rgba(20, 20, 30, 0.85);
+    --color-border: rgba(255, 215, 0, 0.2);
+    --color-border-glow: rgba(255, 215, 0, 0.5);
+
+    /* Gold Palette */
+    --color-gold: #ffd700;
+    --color-gold-light: #ffe44d;
+    --color-gold-dark: #b8860b;
+
+    /* Accent Colors */
+    --color-fire: #ff4500;
+    --color-fire-glow: rgba(255, 69, 0, 0.5);
+    --color-steel: #708090;
+    --color-steel-light: #a8b5c4;
+
+    /* Rarity Colors */
+    --rarity-common: #9ca3af;
+    --rarity-rare: #3b82f6;
+    --rarity-epic: #a855f7;
+    --rarity-legendary: #f59e0b;
+    --rarity-mythic: #ef4444;
+
+    /* Text */
+    --text-primary: #f5f5f5;
+    --text-secondary: #a8a8a8;
+    --text-gold: #ffd700;
+
+    /* Shadows */
+    --shadow-glow: 0 0 20px rgba(255, 215, 0, 0.3);
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.5);
+
+    /* Fonts */
+    --font-display: 'Cinzel', serif;
+    --font-body: 'Cairo', sans-serif;
+
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
+/* Reset & Base */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-body);
+    background: var(--color-bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+        radial-gradient(ellipse at top, rgba(255, 215, 0, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, rgba(255, 69, 0, 0.05) 0%, transparent 50%);
+}
+
+/* Game Container */
+.game-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-md);
+    gap: var(--spacing-md);
+}
+
+/* Header */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-bg-glass);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(10px);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.logo .sword-icon {
+    font-size: 2rem;
+    animation: pulse-glow 2s infinite;
+}
+
+.logo h1 {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    color: var(--color-gold);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    letter-spacing: 2px;
+}
+
+.logo .subtitle {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.header-stats {
+    display: flex;
+    gap: var(--spacing-lg);
+}
+
+.header-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.header-stats .stat-icon {
+    font-size: 1.5rem;
+}
+
+.header-stats .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: var(--color-gold);
+    min-width: 80px;
+    text-align: left;
+}
+
+/* Main Game Area */
+.game-main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    flex: 1;
+}
+
+/* Area Common Styles */
+.smithing-area,
+.battle-area {
+    background: var(--color-bg-glass);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.area-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.area-title .icon {
+    font-size: 1.5rem;
+}
+
+.area-title h2 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--color-gold);
+}
+
+.area-title .wave-info {
+    margin-right: auto;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: rgba(255, 215, 0, 0.1);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+/* Smithing Area */
+.anvil-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-xl);
+}
+
+.anvil {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+    user-select: none;
+}
+
+.anvil:hover {
+    transform: scale(1.05);
+}
+
+.anvil:active {
+    transform: scale(0.95);
+}
+
+.anvil-emoji {
+    font-size: 5rem;
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+    transition: filter var(--transition-fast);
+}
+
+.anvil:hover .anvil-emoji {
+    filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.8));
+}
+
+.anvil-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: pulse-glow 1.5s infinite;
+}
+
+.hammer-strike {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-45deg);
+    font-size: 3rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.1s ease;
+}
+
+.hammer-strike.strike {
+    animation: hammer-down 0.2s ease-out;
+}
+
+.click-feedback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--color-gold);
+    text-shadow: 0 0 10px var(--color-gold);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.click-feedback.show {
+    animation: float-up 0.8s ease-out;
+}
+
+.sparks {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.spark {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--color-gold);
+    border-radius: 50%;
+    animation: spark-fly 0.5s ease-out forwards;
+}
+
+/* Smithing Stats */
+.smithing-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xl);
+}
+
+.smithing-stats>div {
+    text-align: center;
+}
+
+.smithing-stats .label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.smithing-stats .value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--color-gold);
+}
+
+/* Progress Bar */
+.progress-section {
+    padding: var(--spacing-md);
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.progress-bar {
+    position: relative;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-gold-dark), var(--color-gold), var(--color-gold-light));
+    border-radius: var(--radius-full);
+    transition: width var(--transition-normal);
+    position: relative;
+}
+
+.progress-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+/* Craft Button */
+.craft-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(135deg, var(--color-gold-dark), var(--color-gold));
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--color-bg-dark);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-glow);
+}
+
+.craft-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+}
+
+.craft-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--color-steel);
+    box-shadow: none;
+}
+
+.craft-btn .btn-cost {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* Equipped Sword */
+.equipped-sword {
+    margin-top: auto;
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.sword-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.no-sword {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: var(--spacing-md);
+}
+
+.sword-info {
+    text-align: center;
+}
+
+.sword-info.hidden {
+    display: none;
+}
+
+.sword-name {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--color-gold);
+    margin-bottom: var(--spacing-sm);
+}
+
+.sword-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    font-size: 0.9rem;
+}
+
+/* Battle Area */
+.battle-arena {
+    position: relative;
+    height: 200px;
+    background:
+        linear-gradient(to bottom, transparent, rgba(255, 69, 0, 0.1)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M0 50 L50 0 L100 50 L50 100 Z' fill='none' stroke='rgba(255,215,0,0.05)' stroke-width='1'/%3E%3C/svg%3E");
+    border-radius: var(--radius-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xl);
+    overflow: hidden;
+}
+
+.warrior,
+.enemy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.character-sprite {
+    font-size: 4rem;
+    animation: idle-bounce 2s infinite;
+}
+
+.character-name {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.enemy-hp-bar {
+    width: 100px;
+    height: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+}
+
+.hp-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #ff4444, #ff6666);
+    transition: width var(--transition-normal);
+}
+
+.hp-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.battle-effects {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.damage-number {
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--color-fire);
+    text-shadow: 0 0 10px var(--color-fire);
+    animation: damage-pop 1s ease-out forwards;
+}
+
+.damage-number.crit {
+    font-size: 2rem;
+    color: var(--color-gold);
+    text-shadow: 0 0 15px var(--color-gold);
+}
+
+/* Loot Display */
+.loot-display {
+    text-align: center;
+    min-height: 50px;
+}
+
+.loot-title {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.loot-items {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.loot-item {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    animation: loot-pop 0.3s ease-out;
+}
+
+/* Materials Display */
+.materials-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    justify-content: center;
+    margin-top: auto;
+}
+
+.material {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    font-size: 0.8rem;
+}
+
+.mat-icon {
+    font-size: 1rem;
+}
+
+.mat-count {
+    color: var(--color-gold);
+    font-weight: bold;
+}
+
+/* Bottom Menu */
+.bottom-menu {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--color-bg-glass);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    backdrop-filter: blur(10px);
+}
+
+.menu-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.menu-tab:hover {
+    background: rgba(255, 215, 0, 0.1);
+    color: var(--text-primary);
+}
+
+.menu-tab.active {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: var(--color-gold);
+    color: var(--color-gold);
+}
+
+.tab-icon {
+    font-size: 1.5rem;
+}
+
+.tab-label {
+    font-size: 0.85rem;
+}
+
+.prestige-tab {
+    position: relative;
+}
+
+.prestige-tab::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    background: var(--color-fire);
+    border-radius: 50%;
+    opacity: 0;
+    animation: pulse 1.5s infinite;
+}
+
+.prestige-tab.available::after {
+    opacity: 1;
+}
+
+/* Tab Panels */
+.tab-panels {
+    background: var(--color-bg-glass);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    backdrop-filter: blur(10px);
+    min-height: 250px;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+    animation: fade-in 0.3s ease;
+}
+
+.tab-panel h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: var(--color-gold);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* Upgrades Grid */
+.upgrades-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.upgrade-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.upgrade-card:hover {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+.upgrade-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    text-align: center;
+}
+
+.upgrade-info {
+    flex: 1;
+}
+
+.upgrade-name {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.upgrade-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.upgrade-level {
+    font-size: 0.8rem;
+    color: var(--color-gold);
+    margin-top: var(--spacing-xs);
+}
+
+.upgrade-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: linear-gradient(135deg, var(--color-gold-dark), var(--color-gold));
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    color: var(--color-bg-dark);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+}
+
+.upgrade-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-glow);
+}
+
+.upgrade-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--color-steel);
+}
+
+/* Inventory Grid */
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.empty-inventory {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.sword-card {
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.sword-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card);
+}
+
+.sword-card.common {
+    border-color: var(--rarity-common);
+}
+
+.sword-card.rare {
+    border-color: var(--rarity-rare);
+}
+
+.sword-card.epic {
+    border-color: var(--rarity-epic);
+}
+
+.sword-card.legendary {
+    border-color: var(--rarity-legendary);
+}
+
+.sword-card.mythic {
+    border-color: var(--rarity-mythic);
+    animation: mythic-glow 2s infinite;
+}
+
+.sword-card .rarity-badge {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    margin-bottom: var(--spacing-sm);
+}
+
+.sword-card.common .rarity-badge {
+    background: var(--rarity-common);
+    color: #000;
+}
+
+.sword-card.rare .rarity-badge {
+    background: var(--rarity-rare);
+}
+
+.sword-card.epic .rarity-badge {
+    background: var(--rarity-epic);
+}
+
+.sword-card.legendary .rarity-badge {
+    background: var(--rarity-legendary);
+    color: #000;
+}
+
+.sword-card.mythic .rarity-badge {
+    background: var(--rarity-mythic);
+}
+
+.sword-card .sword-icon {
+    font-size: 2.5rem;
+    margin: var(--spacing-sm) 0;
+}
+
+.sword-card .sword-name {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.sword-card .sword-stats {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.sword-card .equip-indicator {
+    display: inline-block;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-gold);
+    color: var(--color-bg-dark);
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+}
+
+/* Skills Grid */
+.skills-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.skill-card {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-normal);
+}
+
+.skill-card.locked {
+    opacity: 0.5;
+    filter: grayscale(50%);
+}
+
+.skill-card.unlocked {
+    border-color: var(--color-gold);
+}
+
+.skill-icon {
+    font-size: 2rem;
+}
+
+.skill-info {
+    flex: 1;
+}
+
+.skill-name {
+    font-family: var(--font-display);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.skill-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.skill-unlock {
+    font-size: 0.75rem;
+    color: var(--color-fire);
+    margin-top: var(--spacing-xs);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.stat-card {
+    padding: var(--spacing-md);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.stat-card .stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-card .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--color-gold);
+}
+
+/* Prestige Content */
+.prestige-content {
+    text-align: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.prestige-info {
+    margin-bottom: var(--spacing-xl);
+}
+
+.prestige-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-md);
+    animation: pulse-glow 2s infinite;
+}
+
+.prestige-info p {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+}
+
+.prestige-bonus {
+    color: var(--color-gold) !important;
+    font-weight: bold;
+}
+
+.prestige-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+}
+
+.prestige-preview .label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.prestige-preview .value {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--color-gold);
+}
+
+.prestige-arrow {
+    font-size: 2rem;
+    color: var(--color-fire);
+}
+
+.prestige-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(135deg, var(--color-fire), #ff6b35);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    color: white;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    box-shadow: 0 0 20px var(--color-fire-glow);
+}
+
+.prestige-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px var(--color-fire-glow);
+}
+
+.prestige-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--color-steel);
+    box-shadow: none;
+}
+
+.prestige-btn small {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--color-bg-card);
+    border: 2px solid var(--color-gold);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    max-width: 400px;
+    width: 90%;
+    animation: modal-pop 0.3s ease;
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+}
+
+.modal-header h3 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--color-gold);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.modal-body {
+    margin-bottom: var(--spacing-lg);
+}
+
+.new-sword {
+    text-align: center;
+}
+
+.new-sword .sword-rarity {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin-bottom: var(--spacing-md);
+}
+
+.new-sword .sword-icon {
+    font-size: 5rem;
+    margin: var(--spacing-md) 0;
+    animation: sword-shine 1s ease-out;
+}
+
+.new-sword .sword-name {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    margin-bottom: var(--spacing-lg);
+}
+
+.sword-stats-modal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.sword-stats-modal .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.modal-btn {
+    flex: 1;
+    padding: var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+}
+
+.modal-btn.equip-btn {
+    background: linear-gradient(135deg, var(--color-gold-dark), var(--color-gold));
+    color: var(--color-bg-dark);
+}
+
+.modal-btn.keep-btn {
+    background: var(--color-steel);
+    color: white;
+}
+
+.modal-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+}
+
+/* Rarity Colors for Modal */
+.new-sword.common .sword-rarity {
+    background: var(--rarity-common);
+    color: #000;
+}
+
+.new-sword.rare .sword-rarity {
+    background: var(--rarity-rare);
+}
+
+.new-sword.epic .sword-rarity {
+    background: var(--rarity-epic);
+}
+
+.new-sword.legendary .sword-rarity {
+    background: var(--rarity-legendary);
+    color: #000;
+}
+
+.new-sword.mythic .sword-rarity {
+    background: var(--rarity-mythic);
+}
+
+.new-sword.common .sword-name {
+    color: var(--rarity-common);
+}
+
+.new-sword.rare .sword-name {
+    color: var(--rarity-rare);
+}
+
+.new-sword.epic .sword-name {
+    color: var(--rarity-epic);
+}
+
+.new-sword.legendary .sword-name {
+    color: var(--rarity-legendary);
+}
+
+.new-sword.mythic .sword-name {
+    color: var(--rarity-mythic);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+@keyframes hammer-down {
+    0% {
+        transform: translateX(-50%) rotate(-45deg) translateY(-20px);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateX(-50%) rotate(-45deg) translateY(10px);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(-50%) rotate(-45deg) translateY(-20px);
+        opacity: 0;
+    }
+}
+
+@keyframes float-up {
+    0% {
+        transform: translate(-50%, -50%);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -150%);
+        opacity: 0;
+    }
+}
+
+@keyframes spark-fly {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--x), var(--y)) scale(0);
+        opacity: 0;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes idle-bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+@keyframes damage-pop {
+    0% {
+        transform: translate(-50%, 0) scale(0.5);
+        opacity: 0;
+    }
+
+    20% {
+        transform: translate(-50%, -20px) scale(1.2);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -60px) scale(1);
+        opacity: 0;
+    }
+}
+
+@keyframes loot-pop {
+    0% {
+        transform: scale(0);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes modal-pop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes sword-shine {
+    0% {
+        transform: scale(0.5) rotate(-180deg);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.2) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes mythic-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px var(--rarity-mythic);
+    }
+
+    50% {
+        box-shadow: 0 0 25px var(--rarity-mythic);
+    }
+}
+
+@keyframes attack-swing {
+    0% {
+        transform: translateX(0);
+    }
+
+    50% {
+        transform: translateX(30px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .game-main {
+        grid-template-columns: 1fr;
+    }
+
+    .logo h1 {
+        font-size: 1.3rem;
+    }
+
+    .logo .subtitle {
+        display: none;
+    }
+
+    .battle-arena {
+        height: 160px;
+    }
+
+    .character-sprite {
+        font-size: 3rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .game-container {
+        padding: var(--spacing-sm);
+    }
+
+    .game-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .header-stats {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .tab-label {
+        font-size: 0.75rem;
+    }
+
+    .tab-icon {
+        font-size: 1.2rem;
+    }
+
+    .anvil-emoji {
+        font-size: 4rem;
+    }
+
+    .upgrades-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =====================================================
+   NEW: Crafting Tiers & Sell Buttons
+   ===================================================== */
+
+/* Craft Section */
+.craft-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.craft-section-title {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+    text-align: center;
+}
+
+.craft-tiers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    justify-content: center;
+}
+
+.tier-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    min-width: 100px;
+}
+
+.tier-btn:hover:not(.disabled) {
+    border-color: var(--color-gold);
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.tier-btn.active {
+    border-color: var(--color-gold);
+    background: rgba(255, 215, 0, 0.2);
+    color: var(--color-gold);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.tier-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tier-name {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.tier-bonus {
+    font-size: 0.7rem;
+    color: var(--color-gold);
+}
+
+.tier-materials {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    max-width: 120px;
+    text-align: center;
+}
+
+/* Sword Card Actions */
+.sword-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+    justify-content: center;
+}
+
+.equip-btn-small,
+.sell-btn-small {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.equip-btn-small {
+    background: linear-gradient(135deg, var(--color-gold-dark), var(--color-gold));
+    color: var(--color-bg-dark);
+}
+
+.equip-btn-small:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.sell-btn-small {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ff6b6b;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.sell-btn-small:hover {
+    background: rgba(239, 68, 68, 0.4);
+    transform: scale(1.05);
+}
+
+/* Sell All Button */
+.sell-all-btn {
+    grid-column: 1 / -1;
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.3));
+    border: 2px solid rgba(239, 68, 68, 0.5);
+    border-radius: var(--radius-md);
+    color: #ff6b6b;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    margin-bottom: var(--spacing-md);
+}
+
+.sell-all-btn:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.5));
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(239, 68, 68, 0.3);
+}
+
+/* Material Tier Colors */
+.tier-btn[data-tier="iron"] .tier-name {
+    color: #a8b5c4;
+}
+
+.tier-btn[data-tier="steel"] .tier-name {
+    color: #60a5fa;
+}
+
+.tier-btn[data-tier="obsidian"] .tier-name {
+    color: #a855f7;
+}
+
+.tier-btn[data-tier="dragon"] .tier-name {
+    color: #f59e0b;
+}
+
+.tier-btn[data-tier="star"] .tier-name {
+    color: #ef4444;
+}
