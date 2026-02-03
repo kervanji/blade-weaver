@@ -184,11 +184,11 @@ const ENEMIES = [
 ];
 
 const UPGRADE_COSTS = {
-    hammer: { base: 15, multiplier: 1.5 },
-    bellows: { base: 50, multiplier: 2 },
-    sharpener: { base: 100, multiplier: 1.8 },
-    furnace: { base: 200, multiplier: 2.2 },
-    pickaxe: { base: 75, multiplier: 1.6 }
+    hammer: { base: 15, multiplier: 1.4 },
+    bellows: { base: 50, multiplier: 1.8 },
+    sharpener: { base: 100, multiplier: 1.6 },
+    furnace: { base: 200, multiplier: 2.1 },
+    pickaxe: { base: 75, multiplier: 1.5 }
 };
 
 // =====================================================
@@ -667,7 +667,9 @@ function spawnEnemy() {
     const enemyIndex = Math.min(Math.floor(gameState.wave / 10), ENEMIES.length - 1);
     const baseEnemy = ENEMIES[enemyIndex];
 
-    const waveMultiplier = 1 + (gameState.wave * 0.2);
+    // Balanced Scaling: Linear early, Exponential later
+    const isBoss = gameState.wave % 10 === 0;
+    const waveMultiplier = Math.pow(1.1, gameState.wave) * (isBoss ? 4 : 1);
     const hp = Math.floor(baseEnemy.baseHp * waveMultiplier);
 
     gameState.currentEnemy = {
@@ -914,6 +916,51 @@ function doPrestige() {
 // =====================================================
 // TAB SYSTEM
 // =====================================================
+window.openChest = function (type) {
+    let cost = 0;
+    let currency = 'gold';
+
+    if (type === 'wood') cost = 500;
+    else if (type === 'steel') cost = 2500;
+    else if (type === 'legend') { cost = 5; currency = 'gems'; }
+
+    if (gameState[currency] < cost) {
+        alert(`${currency === 'gold' ? '🪙 لا تملك ذهباً كافياً!' : '💎 لا تملك أحجاراً كافية!'}`);
+        return;
+    }
+
+    gameState[currency] -= cost;
+
+    // Calculate Rewards
+    let rewards = [];
+    if (type === 'wood') {
+        const amt = random(5, 15);
+        gameState.materials.iron += amt;
+        rewards.push(`${amt} حديد`);
+    } else if (type === 'steel') {
+        const amt1 = random(10, 20);
+        const amt2 = random(5, 10);
+        gameState.materials.iron += amt1;
+        gameState.materials.steel += amt2;
+        rewards.push(`${amt1} حديد`, `${amt2} فولاذ`);
+    } else if (type === 'legend') {
+        const type = MATERIALS[random(0, MATERIALS.length - 1)];
+        const amt = random(10, 30);
+        gameState.materials[type] += amt;
+        rewards.push(`${amt} ${MATERIAL_NAMES[type]}`);
+
+        // Bonus: High chance for 1 extra gem
+        if (Math.random() < 0.3) {
+            gameState.gems += 1;
+            rewards.push(`1 حجر أسطوري 💎`);
+        }
+    }
+
+    updateUI();
+    saveGame();
+    alert(`🎁 فتحت الصندوق وحصلت على:\n${rewards.join('\n')}`);
+};
+
 function switchTab(tabName) {
     DOM.menuTabs.forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
@@ -1408,6 +1455,7 @@ function showNameModal() {
     startBtn.addEventListener('click', () => {
         const name = nameInput.value.trim();
         if (name.length >= 2) {
+            nameInput.blur(); // Hide keyboard
             playerName = name;
             LeaderboardSystem.createPlayer(name);
             nameModal.classList.add('hidden');
