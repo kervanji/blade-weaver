@@ -71,7 +71,8 @@ const gameState = {
         totalGems: 0,
         bestSwordDamage: 0
     },
-    claimedRewards: []
+    claimedRewards: [],
+    lastAdRewardTime: 0
 };
 
 const Characters = {
@@ -1485,6 +1486,11 @@ function startGameSystems() {
 
     // Check for admin rewards
     AdminRewardSystem.checkRewards();
+
+    // Initialize Ad system
+    if (typeof AdSystem !== 'undefined') {
+        AdSystem.init();
+    }
 
     // Initialize missions
     updateMissionsUI();

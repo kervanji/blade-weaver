@@ -16,6 +16,8 @@
     <meta name="theme-color" content="#ffd700">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8351069181719169"
+        crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -163,6 +165,13 @@
                     <div class="loot-items" id="loot-items">
                         <!-- Loot items will appear here -->
                     </div>
+                </div>
+
+                <!-- Battle Ad Unit -->
+                <div class="ad-container ad-banner-horizontal">
+                    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8351069181719169"
+                        data-ad-slot="battle_bottom" data-ad-format="auto" data-full-width-responsive="true"></ins>
+                    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
                 </div>
 
                 <div class="materials-display">
@@ -473,6 +482,22 @@
                         <button class="share-btn instagram" id="share-insta">Instagram Story (مكافأة 🎁)</button>
                         <button class="share-btn telegram" id="share-telegram">Telegram</button>
                     </div>
+
+                    <!-- Rewarded Ad Section -->
+                    <div class="reward-ad-box">
+                        <div class="reward-ad-header">
+                            <span class="icon">🎁</span>
+                            <h4>مكافأة الدعم اليومية</h4>
+                        </div>
+                        <p class="reward-ad-desc">شاهد إعلان لدعم اللعبة واحصل على 1000 ذهبة أو حجر أسطوري!</p>
+                        <button id="watch-ad-btn" class="watch-ad-btn">
+                            <span class="btn-icon">📺</span>
+                            <span class="btn-text">مشاهدة والحصول على مكافأة</span>
+                        </button>
+                        <div id="ad-cooldown-timer" class="ad-cooldown-timer hidden">
+                            تتوقف المكافأة لـ: <span id="cooldown-time">30:00</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -562,6 +587,7 @@
     <script src="referral.js"></script>
     <script src="missions.js"></script>
     <script src="rewards.js"></script>
+    <script src="ads.js"></script>
     <script src="tutorial.js"></script>
     <script src="game.js"></script>
 </body>

@@ -2974,6 +2974,93 @@ body {
 }
 
 /* =====================================================
+   AD UNITS & REWARDS
+   ===================================================== */
+.ad-container {
+    margin: var(--spacing-lg) 0;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px dashed var(--color-border);
+    min-height: 90px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.reward-ad-box {
+    background: rgba(255, 215, 0, 0.05);
+    border: 2px solid var(--color-gold);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-top: var(--spacing-xl);
+    text-align: center;
+    animation: pulse-glow 3s infinite;
+}
+
+.reward-ad-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.reward-ad-header .icon {
+    font-size: 1.5rem;
+}
+
+.reward-ad-header h4 {
+    margin: 0;
+    color: var(--color-gold);
+}
+
+.reward-ad-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.watch-ad-btn {
+    background: linear-gradient(135deg, var(--color-gold), #ffd700);
+    color: var(--color-bg-dark);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    margin: 0 auto;
+    transition: all var(--transition-normal);
+}
+
+.watch-ad-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.watch-ad-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.ad-cooldown-timer {
+    margin-top: var(--spacing-sm);
+    font-weight: bold;
+    color: var(--color-gold-dark);
+    font-size: 1.1rem;
+}
+
+.ad-cooldown-timer span {
+    font-family: monospace;
+    font-size: 1.2rem;
+}
+
+/* =====================================================
    FOOTER & CREDITS
    ===================================================== */
 .game-footer {
@@ -2995,4 +3082,8 @@ body {
 .designer-link:hover {
     color: var(--color-gold-light);
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.hidden {
+    display: none !important;
 }
