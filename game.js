@@ -72,7 +72,9 @@ const gameState = {
         bestSwordDamage: 0
     },
     claimedRewards: [],
-    lastAdRewardTime: 0
+    lastAdRewardTime: 0,
+    lastFreeUpgradeTime: 0,
+    lastMegaAdChestTime: 0
 };
 
 const Characters = {
