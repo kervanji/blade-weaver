@@ -70,7 +70,8 @@ const gameState = {
         totalGold: 0,
         totalGems: 0,
         bestSwordDamage: 0
-    }
+    },
+    claimedRewards: []
 };
 
 const Characters = {
@@ -1481,6 +1482,9 @@ function startGameSystems() {
     if (player) {
         ReferralSystem.processNewPlayerReferral(player.id);
     }
+
+    // Check for admin rewards
+    AdminRewardSystem.checkRewards();
 
     // Initialize missions
     updateMissionsUI();
