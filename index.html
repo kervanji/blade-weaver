@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffd700">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8351069181719169"
         crossorigin="anonymous"></script>
@@ -23,21 +23,53 @@
 <body>
     <div class="game-container">
         <!-- PWA Service Worker Registration -->
+        <!-- PWA Service Worker Registration & Install Logic -->
         <script>
+            let deferredPrompt;
+            const installBtn = document.getElementById('install-app-btn');
+
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('./sw.js')
                         .then(reg => console.log('Service Worker registered'))
-                        .catch(err => console.log('Service Worker failed', err));
+                        .catch(err => console.log('Service Worker registration failed:', err));
                 });
             }
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                // Prevent Chrome 67 and earlier from automatically showing the prompt
+                e.preventDefault();
+                // Stash the event so it can be triggered later.
+                deferredPrompt = e;
+                // Update UI to notify the user they can add to home screen
+                if (installBtn) {
+                    installBtn.classList.remove('hidden');
+
+                    installBtn.addEventListener('click', (e) => {
+                        // Hide our user interface that shows our A2HS button
+                        installBtn.classList.add('hidden');
+                        // Show the prompt
+                        deferredPrompt.prompt();
+                        // Wait for the user to respond to the prompt
+                        deferredPrompt.userChoice.then((choiceResult) => {
+                            if (choiceResult.outcome === 'accepted') {
+                                console.log('User accepted the A2HS prompt');
+                            } else {
+                                console.log('User dismissed the A2HS prompt');
+                            }
+                            deferredPrompt = null;
+                        });
+                    });
+                }
+            });
         </script>
+
         <!-- Header -->
         <header class="game-header">
             <div class="logo">
                 <span class="sword-icon">⚔️</span>
-                <h1>Blade Weaver</h1>
-                <span class="subtitle">The Eternal Smith</span>
+                <h1 data-i18n="gameTitle">Blade Weaver</h1>
+                <span class="subtitle" data-i18n="gameSubtitle">The Eternal Smith</span>
             </div>
             <div class="header-stats">
                 <div class="stat gold-stat">
@@ -52,6 +84,22 @@
                     <span class="stat-icon">💎</span>
                     <span class="stat-value" id="gem-display">0</span>
                 </div>
+                <div class="stat arena-stat">
+                    <span class="stat-icon">⚔️</span>
+                    <span class="stat-value" id="arena-coin-display">0</span>
+                </div>
+                <button class="share-btn" id="insta-share-btn" title="شارك ترتيبك"
+                    style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; margin-right: 8px; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    📸 شارك
+                </button>
+                <button class="admin-btn hidden" id="admin-btn" title="لوحة الأدمن"
+                    style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; border: none; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    🔐 أدمن
+                </button>
+                <button class="install-btn hidden" id="install-app-btn" title="تثبيت اللعبة"
+                    style="background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; border: none; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; font-weight: bold; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 10px rgba(0,0,0,0.3); margin-right: 5px;">
+                    📲 تثبيت
+                </button>
             </div>
         </header>
 
@@ -67,11 +115,14 @@
                 <div class="anvil-container">
                     <div class="anvil" id="anvil">
                         <div class="anvil-glow"></div>
-                        <div class="hammer-strike" id="hammer-strike">🔨</div>
-                        <span class="anvil-emoji">🗜️</span>
-                        <div class="sparks" id="sparks"></div>
+                        <div class="anvil-emoji">⚒️</div>
+                        <div id="hammer-strike" class="hammer-strike">🔨</div>
+                        <div id="click-feedback" class="click-feedback"></div>
+                        <div id="sparks" class="sparks-container"></div>
                     </div>
-                    <div class="click-feedback" id="click-feedback">+1</div>
+                    <!-- Tap hint -->
+                    <div style="text-align: center; margin-top: 20px; color: #aaa; font-size: 0.9rem;" id="tap-hint"
+                        data-i18n="click_to_hit">اضغط للطرق!</div>
                 </div>
 
                 <div class="smithing-stats">
@@ -96,6 +147,22 @@
                     </div>
                 </div>
 
+                <!-- Item Category Selection -->
+                <div class="craft-section">
+                    <div class="craft-section-title">اختر فئة الصنع</div>
+                    <div class="category-selection" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button class="category-btn active" data-category="weapon"
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ffd700; background: rgba(255,215,0,0.1); color: #fff; cursor: pointer;">⚔️
+                            سلاح</button>
+                        <button class="category-btn" data-category="body"
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">🛡️
+                            درع</button>
+                        <button class="category-btn" data-category="head"
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">🪖
+                            خوذة</button>
+                    </div>
+                </div>
+
                 <!-- Material Tiers Selection -->
                 <div class="craft-section">
                     <div class="craft-section-title">اختر نوع المعدن</div>
@@ -104,30 +171,50 @@
                     </div>
                 </div>
 
-                <button class="craft-btn" id="craft-btn" disabled title="يتطلب مواد ونقاط حدادة">
-                    <span class="btn-icon">⚔️</span>
-                    <span class="btn-text">صناعة بمواد</span>
-                    <span class="btn-cost">100 نقطة</span>
-                </button>
-
-                <button class="craft-btn luck-btn" id="luck-craft-btn" disabled
-                    title="لا يتطلب مواد، فرصة أقل للسيوف القوية">
-                    <span class="btn-icon">🎲</span>
-                    <span class="btn-text">حدادة الحظ</span>
-                    <span class="btn-cost">150 نقطة</span>
-                </button>
-
-                <!-- Equipped Sword Display -->
-                <div class="equipped-sword" id="equipped-sword">
-                    <div class="sword-label">السيف المجهز</div>
-                    <div class="no-sword" id="no-sword">لا يوجد سيف</div>
-                    <div class="sword-info hidden" id="sword-info">
-                        <div class="sword-name" id="equipped-name">-</div>
-                        <div class="sword-stats">
-                            <span>⚔️ <span id="equipped-damage">0</span></span>
-                            <span>⚡ <span id="equipped-speed">0</span></span>
-                            <span>💥 <span id="equipped-crit">0%</span></span>
+                <div class="action-buttons">
+                    <button class="craft-btn" id="craft-btn" disabled>
+                        <div class="btn-content">
+                            <span class="icon">⚒️</span>
+                            <span class="text" data-i18n="craft_btn">اصنع</span>
                         </div>
+                        <div class="btn-cost">10 SP</div>
+                    </button>
+
+                    <button class="craft-btn luck-btn" id="luck-btn" onclick="refineMaterials()">
+                        <div class="btn-content">
+                            <span class="icon">🎲</span>
+                            <span class="text" data-i18n="luck_btn">تكرير</span>
+                        </div>
+                        <div class="btn-cost">100 Mat</div>
+                    </button>
+                </div>
+
+                <!-- Equipped Equipment Display -->
+                <div class="equipped-equipment" id="equipped-equipment"
+                    style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px;">
+                    <div class="equip-slot" id="equip-head" data-slot="head"
+                        style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer;">
+                        <div style="font-size: 0.7rem; color: #aaa; margin-bottom: 5px;">الرأس</div>
+                        <div class="slot-icon" style="font-size: 1.5rem;">🪖</div>
+                        <div class="slot-name"
+                            style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            فارغ</div>
+                    </div>
+                    <div class="equip-slot" id="equip-weapon" data-slot="weapon"
+                        style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; border-color: #ffd700;">
+                        <div style="font-size: 0.7rem; color: #aaa; margin-bottom: 5px;">السلاح</div>
+                        <div class="slot-icon" style="font-size: 1.5rem;">⚔️</div>
+                        <div class="slot-name"
+                            style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            فارغ</div>
+                    </div>
+                    <div class="equip-slot" id="equip-body" data-slot="body"
+                        style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; text-align: center; cursor: pointer;">
+                        <div style="font-size: 0.7rem; color: #aaa; margin-bottom: 5px;">الجسم</div>
+                        <div class="slot-icon" style="font-size: 1.5rem;">🛡️</div>
+                        <div class="slot-name"
+                            style="font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            فارغ</div>
                     </div>
                 </div>
             </section>
@@ -136,8 +223,8 @@
             <section class="battle-area">
                 <div class="area-title">
                     <span class="icon">⚔️</span>
-                    <h2>ساحة القتال</h2>
-                    <span class="wave-info">الموجة: <span id="wave-number">1</span></span>
+                    <h2 data-i18n="battle_arena">ساحة المعركة</h2>
+                    <div class="wave-info"><span data-i18n="wave">الموجة</span>: <span id="current-wave">1</span></div>
                 </div>
 
                 <div class="battle-arena" id="battle-arena">
@@ -169,8 +256,9 @@
 
                 <!-- Battle Ad Unit -->
                 <div class="ad-container ad-banner-horizontal">
+                    <!-- TODO: REPLACE "1234567890" WITH YOUR REAL NUMERIC AD SLOT ID FROM GOOGLE ADSENSE -->
                     <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8351069181719169"
-                        data-ad-slot="battle_bottom" data-ad-format="auto" data-full-width-responsive="true"></ins>
+                        data-ad-slot="1234567890" data-ad-format="auto" data-full-width-responsive="true"></ins>
                     <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
                 </div>
 
@@ -196,35 +284,40 @@
                         <span class="mat-count" id="dragonbone-count">0</span>
                     </div>
                     <div class="material">
-                        <span class="mat-icon">⭐</span>
-                        <span class="mat-name">معدن نجمي</span>
+                        <span class="mat-icon">🌠</span>
+                        <span class="mat-name">نجمي</span>
                         <span class="mat-count" id="starmetal-count">0</span>
                     </div>
+                </div>
+                <div style="text-align: center; margin-top: 10px;">
+                    <button class="refine-btn" id="refine-materials-btn"
+                        style="background: rgba(255,215,0,0.2); border: 1px solid #ffd700; color: #ffd700; padding: 4px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-weight: bold; transition: all 0.3s; width: 80%;">💎
+                        تكرير المواد (Gems)</button>
                 </div>
             </section>
         </main>
 
         <!-- Bottom Menu -->
         <nav class="bottom-menu">
-            <button class="menu-tab active" data-tab="shop">
-                <span class="tab-icon">🏪</span>
-                <span class="tab-label">المتجر</span>
+            <button class="menu-tab active" data-tab="smithing">
+                <span class="tab-icon">⚒️</span>
+                <span class="tab-label" data-i18n="tab_smithing">الحدادة</span>
             </button>
             <button class="menu-tab" data-tab="inventory">
                 <span class="tab-icon">🎒</span>
-                <span class="tab-label">الحقيبة</span>
+                <span class="tab-label" data-i18n="tab_inventory">الحقيبة</span>
             </button>
-            <button class="menu-tab" data-tab="missions">
-                <span class="tab-icon">📋</span>
-                <span class="tab-label">المهام</span>
+            <button class="menu-tab" data-tab="upgrades">
+                <span class="tab-icon">⬆️</span>
+                <span class="tab-label" data-i18n="tab_upgrades">تطوير</span>
+            </button>
+            <button class="menu-tab" data-tab="missions" id="missions-tab-btn">
+                <span class="tab-icon">📜</span>
+                <span class="tab-label" data-i18n="tab_missions">مهمات</span>
             </button>
             <button class="menu-tab" data-tab="leaderboard">
                 <span class="tab-icon">🏆</span>
-                <span class="tab-label">الصدارة</span>
-            </button>
-            <button class="menu-tab" data-tab="stats">
-                <span class="tab-icon">📊</span>
-                <span class="tab-label">الإحصائيات</span>
+                <span class="tab-label" data-i18n="tab_leaderboard">المراكز</span>
             </button>
             <button class="menu-tab prestige-tab" data-tab="prestige" id="prestige-tab">
                 <span class="tab-icon">🌟</span>
@@ -241,6 +334,18 @@
             <button class="menu-tab" data-tab="referrals">
                 <span class="tab-icon">👥</span>
                 <span class="tab-label">الأصدقاء</span>
+            </button>
+            <button class="menu-tab" data-tab="arena">
+                <span class="tab-icon">🏟️</span>
+                <span class="tab-label">الساحة</span>
+            </button>
+            <button class="menu-tab" data-tab="alliance">
+                <span class="tab-icon">🛡️</span>
+                <span class="tab-label" data-i18n="tab_alliance">تحالف</span>
+            </button>
+            <button class="menu-tab" data-tab="account">
+                <span class="tab-icon">👤</span>
+                <span class="tab-label" data-i18n="tab_account">حسابي</span>
             </button>
         </nav>
 
@@ -527,6 +632,258 @@
                     <!-- سيتم توليد الأبطال هنا برمجياً -->
                 </div>
             </div>
+
+            <!-- Arena Panel -->
+            <div class="tab-panel" id="arena-panel">
+                <div class="arena-header">
+                    <h3>🏟️ ساحة التحدي</h3>
+                    <div class="arena-timer" id="arena-timer">الحالة: <span id="arena-status">مغلق</span> (<span
+                            id="arena-countdown">--:--</span>)</div>
+                </div>
+
+                <div class="arena-content" id="arena-active-content">
+                    <div class="arena-stats-mini"
+                        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                        <div class="mini-stat"
+                            style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 8px; border: 1px solid #ffd700;">
+                            <span class="label" style="font-size: 0.8rem; color: #aaa;">نقاط التصنيف:</span>
+                            <span class="value" id="arena-rank-display"
+                                style="font-size: 1.2rem; font-weight: bold; color: #ffd700;">0</span>
+                        </div>
+                        <div class="mini-stat"
+                            style="background: rgba(231,76,60,0.1); padding: 10px; border-radius: 8px; border: 1px solid #e74c3c;">
+                            <span class="label" style="font-size: 0.8rem; color: #aaa;">السلسلة 🔥:</span>
+                            <span class="value" id="arena-streak-display"
+                                style="font-size: 1.2rem; font-weight: bold; color: #e74c3c;">0</span>
+                        </div>
+                        <div class="mini-stat"
+                            style="background: rgba(46,204,113,0.1); padding: 10px; border-radius: 8px; border: 1px solid #2ecc71;">
+                            <span class="label" style="font-size: 0.8rem; color: #aaa;">الانتصارات:</span>
+                            <span class="value" id="arena-wins-display"
+                                style="font-size: 1.2rem; font-weight: bold; color: #2ecc71;">0</span>
+                        </div>
+                        <div class="mini-stat"
+                            style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);">
+                            <span class="label" style="font-size: 0.8rem; color: #aaa;">القوة الحالية:</span>
+                            <span class="value" id="arena-power-display"
+                                style="font-size: 1.2rem; font-weight: bold; color: #fff;">0</span>
+                        </div>
+                    </div>
+
+                    <div
+                        style="background: rgba(231,76,60,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e74c3c;">
+                        <div style="font-weight: bold; color: #e74c3c; margin-bottom: 5px;">⚠️ تحذير المخاطرة</div>
+                        <div style="font-size: 0.85rem; color: #fff;">
+                            الخسارة تحمل احتمال 25% لفقدان قطعة عشوائية من عدتك!
+                        </div>
+                    </div>
+
+                    <div
+                        style="background: rgba(46,204,113,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2ecc71;">
+                        <div style="font-weight: bold; color: #2ecc71; margin-bottom: 5px;">🎁 مكافآت السلسلة</div>
+                        <div style="font-size: 0.85rem; color: #fff;">
+                            • 10 انتصارات: سلاح نادر 🗡️<br>
+                            • 20 انتصار: سلاح أسطوري ⚔️✨
+                        </div>
+                    </div>
+
+                    <div class="arena-actions">
+                        <div class="arena-prep-card">
+                            <h4>تجهيز البطل</h4>
+                            <p>يجب تجهيز المعدات قبل البدء</p>
+                            <button class="prepare-btn" id="prepare-arena-btn">تجهيز العدة (50 ⚔️)</button>
+                        </div>
+
+                        <div class="arena-challenge-card" id="arena-challenge-card">
+                            <h4>إرسال تحدي</h4>
+                            <p>ابحث عن خصم عشوائي</p>
+                            <button class="challenge-btn" id="start-challenge-btn" disabled>صيد الخصوم ⚔️</button>
+                        </div>
+                    </div>
+
+                    <div class="arena-ad-box">
+                        <p>احصل على عملات الساحة لتجهيز بطلك!</p>
+                        <button class="watch-ad-btn" id="watch-arena-ad-btn">مشاهدة إعلان (50 ⚔️)</button>
+                    </div>
+                </div>
+
+                <div class="arena-closed-message hidden" id="arena-closed-msg">
+                    <p>الساحة تفتح في ساعات محددة فقط!</p>
+                    <p>المواعيد: 18:00 - 20:00 يومياً</p>
+                </div>
+            </div>
+
+            <!-- Alliance Panel -->
+            <div class="tab-panel" id="alliance-panel">
+                <div id="no-alliance-view">
+                    <h3>🛡️ نظام التحالفات</h3>
+                    <p>انضم إلى تحالف أو أنشئ تحالفك الخاص لتخوض معارك جماعية!</p>
+                    <div class="alliance-actions-init">
+                        <div class="alliance-create-box">
+                            <input type="text" id="alliance-name-input" placeholder="اسم التحالف..." maxlength="15">
+                            <button class="create-btn" id="create-alliance-btn">إنشاء (10000 🪙)</button>
+                        </div>
+                        <hr>
+                        <h4>البحث عن تحالف</h4>
+                        <div class="alliance-list-container" id="alliance-search-list">
+                            <!-- List of alliances will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="active-alliance-view" class="hidden">
+                    <div class="alliance-header-card"
+                        style="background: linear-gradient(45deg, #2c3e50, #4ca1af); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 2px solid #6dd5fa;">
+                        <h3 id="active-alliance-name"
+                            style="font-size: 2rem; margin-bottom: 10px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">اسم
+                            التحالف</h3>
+                        <div style="display: flex; justify-content: center; gap: 20px; margin-bottom: 15px;">
+                            <div class="alliance-level">المستوى: <span id="alliance-level-val"
+                                    style="color: #ffd700; font-weight: bold;">1</span></div>
+                            <div class="alliance-members">الأعضاء: <span id="alliance-members-count">0/20</span></div>
+                        </div>
+
+                        <div class="alliance-funds-box"
+                            style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; display: inline-block; min-width: 200px;">
+                            <div style="color: #aaa; font-size: 0.9rem;">خزينة التحالف</div>
+                            <div style="font-size: 1.5rem; color: #ffd700; margin: 5px 0;">💰 <span
+                                    id="alliance-funds-val">0</span></div>
+                            <button onclick="ArenaSystem.donateToAlliance()"
+                                style="background: #27ae60; border: none; padding: 5px 15px; border-radius: 15px; color: white; cursor: pointer; font-size: 0.9rem;">تبرع
+                                بالذهب</button>
+                        </div>
+                    </div>
+
+                    <!-- Alliance Tabs/Sections -->
+                    <div class="alliance-sections" style="display: flex; flex-direction: column; gap: 15px;">
+
+                        <!-- War Section -->
+                        <div class="alliance-section-card"
+                            style="background: rgba(231,76,60,0.1); border: 1px solid #c0392b; padding: 15px; border-radius: 10px;">
+                            <h4
+                                style="color: #e74c3c; display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                ☠️ غرفة الحرب
+                                <span
+                                    style="font-size: 0.8rem; background: #c0392b; color: white; padding: 2px 8px; border-radius: 10px;">للقائد
+                                    فقط</span>
+                            </h4>
+                            <p style="font-size: 0.9rem; margin-bottom: 15px; color: #ddd;">أرسل نخبة القوات (أول 5
+                                أعضاء) لغزو التحالفات الأخرى ونهب عتادهم!</p>
+
+                            <div class="war-stats" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <div
+                                    style="flex: 1; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 5px; text-align: center;">
+                                    <div style="font-size: 0.8rem; color: #aaa;">انتصارات</div>
+                                    <div id="war-wins-val" style="color: #2ecc71; font-weight: bold;">0</div>
+                                </div>
+                                <div
+                                    style="flex: 1; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 5px; text-align: center;">
+                                    <div style="font-size: 0.8rem; color: #aaa;">هزائم</div>
+                                    <div id="war-losses-val" style="color: #e74c3c; font-weight: bold;">0</div>
+                                </div>
+                            </div>
+
+                            <button id="init-war-btn" onclick="ArenaSystem.initiateWarSetup()"
+                                style="width: 100%; padding: 12px; background: linear-gradient(45deg, #c0392b, #8e44ad); border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">⚔️
+                                إعلان الحرب</button>
+                        </div>
+
+                        <!-- Upgrades Section -->
+                        <div class="alliance-section-card"
+                            style="background: rgba(41, 128, 185, 0.1); border: 1px solid #2980b9; padding: 15px; border-radius: 10px;">
+                            <h4 style="color: #3498db; margin-bottom: 10px;">🏛️ تطويرات التحالف</h4>
+                            <div class="alliance-upgrades-grid" id="alliance-upgrades-list"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <!-- Upgrades injected by JS -->
+                                <div style="text-align: center; color: #aaa; grid-column: span 2;">جاري التحميل...</div>
+                            </div>
+                        </div>
+
+                        <!-- Stash Section -->
+                        <div class="alliance-section-card"
+                            style="background: rgba(241, 196, 15, 0.1); border: 1px solid #f1c40f; padding: 15px; border-radius: 10px;">
+                            <h4 style="color: #f1c40f; margin-bottom: 10px;">📦 خزانة الغنائم</h4>
+                            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 10px;">العتاد المنهوب من الحروب
+                                يظهر هنا. يمكن للقائد توزيعه.</p>
+                            <div id="alliance-stash-list"
+                                style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; min-height: 80px;">
+                                <div style="text-align: center; width: 100%; color: #555; padding-top: 20px;">الخزانة
+                                    فارغة</div>
+                            </div>
+                        </div>
+
+                        <!-- Members List -->
+                        <div class="alliance-section-card"
+                            style="background: rgba(255, 255, 255, 0.05); border: 1px solid #555; padding: 15px; border-radius: 10px;">
+                            <h4 style="margin-bottom: 10px;">👥 الأعضاء</h4>
+                            <div class="alliance-members-list" id="alliance-members-list">
+                                <!-- Members List -->
+                            </div>
+                        </div>
+
+                        <button class="leave-btn" id="leave-alliance-btn"
+                            style="background: #34495e; margin-top: 10px;">مغادرة التحالف</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Panel -->
+            <div class="tab-panel" id="account-panel">
+                <div class="account-header">
+                    <h3>👤 إدارة الحساب</h3>
+                    <p>قم بربط حسابك لحفظ تقدمك واللعب من أي جهاز آخر.</p>
+                </div>
+
+                <div id="auth-logged-out">
+                    <div class="auth-card">
+                        <div class="auth-icon">🔐</div>
+                        <h4>أنت تلعب كضيف الآن</h4>
+                        <p>بياناتك محفوظة محلياً فقط. في حال مسح بيانات المتصفح ستفقد تقدمك!</p>
+
+                        <div class="auth-actions">
+                            <button class="auth-btn google-btn" id="google-login-btn">
+                                <span class="icon">🔍</span> الربط بحساب Google
+                            </button>
+                            <div class="auth-divider">أو</div>
+                            <div class="email-auth">
+                                <input type="email" id="auth-email" placeholder="البريد الإلكتروني">
+                                <input type="password" id="auth-password" placeholder="كلمة المرور">
+                                <div class="email-btns">
+                                    <button class="auth-btn" id="email-login-btn">تسجيل دخول</button>
+                                    <button class="auth-btn outline" id="email-signup-btn">إنشاء حساب جديد</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="auth-logged-in" class="hidden">
+                    <div class="account-info-card">
+                        <div class="user-avatar" id="user-avatar">👤</div>
+                        <div class="user-details">
+                            <h4 id="user-display-name">اسم المستخدم</h4>
+                            <p id="user-email">email@example.com</p>
+                        </div>
+                        <div class="sync-status">
+                            <span class="status-icon">✅</span> تم المزامنة سحابياً
+                        </div>
+                        <button class="logout-btn" id="logout-btn" data-i18n="logout">تسجيل الخروج</button>
+                    </div>
+                </div>
+
+                <!-- Language Settings -->
+                <div class="admin-section"
+                    style="margin-top: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                    <h4 style="color: #ffd700; margin-bottom: 12px;" data-i18n="language_settings">🌐 اللغة / Language
+                    </h4>
+                    <select id="settings-language-select"
+                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                        <option value="ar">�� العربية</option>
+                        <option value="en">🇺🇸 English</option>
+                        <option value="tr">🇹🇷 Türkçe</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <footer class="game-footer">
             <p>تم تصميم هذه اللعبة بواسطة <a href="https://www.instagram.com/kervanji" target="_blank"
@@ -546,17 +903,25 @@
                     <div class="sword-icon">🗡️</div>
                     <div class="sword-name" id="modal-sword-name">سيف حديدي</div>
                     <div class="sword-stats-modal">
-                        <div class="stat-row">
+                        <div class="stat-row" id="modal-damage-row">
                             <span class="stat-label">⚔️ الضرر</span>
                             <span class="stat-value" id="modal-damage">10</span>
                         </div>
-                        <div class="stat-row">
+                        <div class="stat-row" id="modal-speed-row">
                             <span class="stat-label">⚡ السرعة</span>
                             <span class="stat-value" id="modal-speed">1.0</span>
                         </div>
-                        <div class="stat-row">
+                        <div class="stat-row" id="modal-crit-row">
                             <span class="stat-label">💥 الحرجة</span>
                             <span class="stat-value" id="modal-crit">5%</span>
+                        </div>
+                        <div class="stat-row" id="modal-hp-row" style="display: none;">
+                            <span class="stat-label">❤️ الصحة</span>
+                            <span class="stat-value" id="modal-hp">0</span>
+                        </div>
+                        <div class="stat-row" id="modal-def-row" style="display: none;">
+                            <span class="stat-label">🛡️ الدفاع</span>
+                            <span class="stat-value" id="modal-def">0</span>
                         </div>
                     </div>
                 </div>
@@ -576,14 +941,242 @@
             </div>
             <div class="modal-body">
                 <div class="name-input-section">
-                    <p class="name-prompt">أدخل اسمك ليظهر في لوحة الصدارة</p>
-                    <input type="text" id="player-name-input" class="name-input" placeholder="اسمك..." maxlength="20"
-                        autocomplete="off">
-                    <p class="name-hint">سيتم حفظ تقدمك تلقائياً</p>
+                    <p class="name-prompt" style="font-size: 1rem; margin-bottom: 15px; color: #ffd700;">أدخل اسمك ليظهر
+                        في لوحة الصدارة</p>
+                    <input type="text" id="player-name-input" class="name-input" placeholder="اسمك (حرفين على الأقل)..."
+                        maxlength="20" autocomplete="off"
+                        style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center; transition: all 0.3s;">
+                    <p class="name-error" id="name-error-message"
+                        style="font-size: 0.9rem; margin-top: 8px; color: #e74c3c; font-weight: bold; display: none; text-align: center;">
+                        ⚠️ الاسم مستخدم من قبل</p>
+                    <p class="name-hint" style="font-size: 0.85rem; margin-top: 10px; color: #aaa;">✓ سيتم حفظ تقدمك
+                        تلقائياً<br>✓ يمكنك ربط حسابك لاحقاً</p>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn start-btn" id="start-game-btn" disabled>ابدأ اللعب!</button>
+                <button class="modal-btn auth-btn google-btn" id="start-link-btn"
+                    style="margin-bottom: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                    <span class="icon">🔗</span> ربط الحساب الآن (اختياري)
+                </button>
+                <button class="modal-btn start-btn" id="start-game-btn" disabled
+                    style="background: #2ecc71; font-size: 1.1rem; padding: 15px;">ابدأ اللعب!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conflict Resolution Modal -->
+    <div class="modal hidden" id="conflict-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ تعارض في البيانات</h3>
+            </div>
+            <div class="modal-body">
+                <p>هذا الحساب يحتوي بالفعل على تقدم سابق (سحابة). أي بيانات تريد استخدامها؟</p>
+                <div class="conflict-options">
+                    <div class="conflict-card" id="restore-cloud-btn">
+                        <div class="icon">☁️</div>
+                        <h4>بيانات السحابة</h4>
+                        <p id="cloud-stats-preview">جاري التحميل...</p>
+                        <button class="auth-btn">استعادة الشخصية</button>
+                    </div>
+                    <div class="conflict-card" id="overwrite-cloud-btn">
+                        <div class="icon">📱</div>
+                        <h4>البيانات المحلية</h4>
+                        <p id="local-stats-preview">المستوى الحالي</p>
+                        <button class="auth-btn outline">حذف القديم والربط</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conflict Resolution Modal -->
+    <div class="modal hidden" id="conflict-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ تعارض في البيانات</h3>
+            </div>
+            <div class="modal-body">
+                <p>هذا الحساب يحتوي بالفعل على تقدم سابق (سحابة). أي بيانات تريد استخدامها؟</p>
+                <div class="conflict-options"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <div class="conflict-card" id="restore-cloud-btn"
+                        style="background: rgba(255,215,0,0.1); padding: 15px; border-radius: 12px; border: 1px solid #ffd700; cursor: pointer;">
+                        <div class="icon" style="font-size: 2rem;">☁️</div>
+                        <h4>بيانات السحابة</h4>
+                        <p id="cloud-stats-preview" style="font-size: 0.8rem; margin: 10px 0;">جاري التحميل...</p>
+                        <button class="auth-btn" style="width: 100%;">استعادة الشخصية</button>
+                    </div>
+                    <div class="conflict-card" id="overwrite-cloud-btn"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;">
+                        <div class="icon" style="font-size: 2rem;">📱</div>
+                        <h4>البيانات المحلية</h4>
+                        <p id="local-stats-preview" style="font-size: 0.8rem; margin: 10px 0;">المستوى الحالي</p>
+                        <button class="auth-btn outline" style="width: 100%;">حذف القديم والربط</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Language Selection Modal -->
+    <div class="modal hidden" id="language-modal" style="z-index: 20000;">
+        <div class="modal-content" style="text-align: center;">
+            <div class="modal-header">
+                <h3>🌐 Language / اللغة / Dil</h3>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px;">Please select your language<br>يرجى اختيار لغتك<br>Lütfen dilinizi seçin
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button class="modal-btn" onclick="LanguageSystem.setLanguage('ar')"
+                        style="background: linear-gradient(135deg, #1e3c72, #2a5298);">�� العربية</button>
+                    <button class="modal-btn" onclick="LanguageSystem.setLanguage('en')"
+                        style="background: linear-gradient(135deg, #dd2476, #ff512f);">🇺🇸 English</button>
+                    <button class="modal-btn" onclick="LanguageSystem.setLanguage('tr')"
+                        style="background: linear-gradient(135deg, #11998e, #38ef7d);">🇹🇷 Türkçe</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ad Watching Overlay -->
+    <div id="ad-overlay" class="hidden"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; text-align: center;">
+        <div class="ad-container">
+            <h3 style="color: #ffd700; margin-bottom: 20px;">📺 جاري مشاهدة الإعلان...</h3>
+            <div class="ad-placeholder"
+                style="width: 200px; height: 200px; border: 5px solid #ffd700; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                <div class="ad-timer-circle" id="ad-timer-circle"
+                    style="font-size: 4rem; font-weight: bold; color: #fff;">10</div>
+            </div>
+            <p style="color: #fff;">لا تغلق الصفحة للحصول على المكافأة!</p>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div class="modal hidden" id="admin-panel">
+        <div class="modal-content admin-modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>🔐 لوحة تحكم الأدمن</h3>
+                <button id="close-admin-panel"
+                    style="background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Auth Section -->
+                <div id="admin-auth-section" style="text-align: center; padding: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">🔒</div>
+                    <h4 style="margin-bottom: 15px;">تسجيل دخول الأدمن</h4>
+                    <input type="password" id="admin-password" placeholder="كلمة المرور..."
+                        style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center; margin-bottom: 15px;">
+                    <button id="admin-login-btn"
+                        style="background: #e74c3c; color: #fff; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">دخول</button>
+                </div>
+
+                <!-- Control Section -->
+                <div id="admin-control-section" class="hidden">
+                    <!-- Notifications -->
+                    <div class="admin-section"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <h4 style="color: #ffd700; margin-bottom: 12px;">📢 إرسال إشعار</h4>
+                        <textarea id="notification-message" placeholder="نص الإشعار..." rows="2"
+                            style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; resize: none; margin-bottom: 10px;"></textarea>
+                        <div style="display: flex; gap: 10px;">
+                            <select id="notification-type"
+                                style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                                <option value="info">📢 عام</option>
+                                <option value="success">✅ نجاح</option>
+                                <option value="warning">⚠️ تحذير</option>
+                                <option value="tournament">🏆 بطولة</option>
+                                <option value="gift">🎁 هدية</option>
+                            </select>
+                            <button id="send-notification-btn"
+                                style="background: #3498db; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">إرسال</button>
+                        </div>
+                    </div>
+
+                    <!-- Gift Items -->
+                    <div class="admin-section"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <h4 style="color: #ffd700; margin-bottom: 12px;">🎁 إهداء عناصر</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="gift-gold-amount" value="10000" min="1"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center;">
+                                <button id="gift-gold-btn"
+                                    style="background: #f39c12; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">🪙
+                                    ذهب</button>
+                            </div>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="gift-gems-amount" value="50" min="1"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center;">
+                                <button id="gift-gems-btn"
+                                    style="background: #9b59b6; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">💎
+                                    جواهر</button>
+                            </div>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="gift-arena-amount" value="500" min="1"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center;">
+                                <button id="gift-arena-btn"
+                                    style="background: #e74c3c; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">⚔️
+                                    ساحة</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="gift-weapon-btn"
+                                style="flex: 1; background: #27ae60; color: #fff; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">⚔️
+                                سلاح عشوائي</button>
+                            <button id="gift-armor-btn"
+                                style="flex: 1; background: #3498db; color: #fff; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">🛡️
+                                درع عشوائي</button>
+                        </div>
+                    </div>
+
+                    <!-- Player Management -->
+                    <div class="admin-section"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <h4 style="color: #ffd700; margin-bottom: 12px;">✏️ تغيير اسم اللاعب</h4>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="player-new-name" placeholder="الاسم الجديد..." maxlength="15"
+                                style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff;">
+                            <button id="change-name-btn"
+                                style="background: #e67e22; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">تغيير</button>
+                        </div>
+                    </div>
+
+                    <!-- Tournament System -->
+                    <div class="admin-section"
+                        style="background: rgba(255,215,0,0.1); padding: 15px; border-radius: 10px; border: 1px solid rgba(255,215,0,0.3);">
+                        <h4 style="color: #ffd700; margin-bottom: 12px;">🏆 نظام البطولات</h4>
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span>الحالة:</span>
+                            <span id="tournament-status" class="status inactive">لا توجد بطولة</span>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span>الوقت المتبقي:</span>
+                            <span id="tournament-countdown"
+                                style="font-size: 1.2rem; font-weight: bold; color: #ffd700;">--:--</span>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem;">جدولة
+                                البطولة (اختياري):</label>
+                            <input type="datetime-local" id="tournament-schedule"
+                                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="create-tournament-btn"
+                                style="flex: 1; background: #27ae60; color: #fff; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">🏆
+                                إنشاء بطولة (20 دقيقة)</button>
+                            <button id="cancel-tournament-btn" class="hidden"
+                                style="flex: 1; background: #e74c3c; color: #fff; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">❌
+                                إلغاء</button>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #aaa; margin-top: 10px; text-align: center;">📌 سيتم إرسال
+                            تذكير قبل البطولة بساعة</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -591,13 +1184,21 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 
+    <script src="translations.js"></script>
+    <script src="language.js"></script>
     <script src="leaderboard.js"></script>
     <script src="referral.js"></script>
     <script src="missions.js"></script>
     <script src="rewards.js"></script>
     <script src="ads.js"></script>
+    <script src="arena.js"></script>
+    <script src="auth.js"></script>
     <script src="tutorial.js"></script>
+    <script src="nameModal.js"></script>
+    <script src="admin.js"></script>
     <script src="game.js"></script>
 </body>
 

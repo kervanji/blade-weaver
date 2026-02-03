@@ -6,7 +6,8 @@ const AdSystem = {
     COOLDOWNS: {
         daily: 30 * 60 * 1000,       // 30 minutes
         upgrade: 60 * 60 * 1000,     // 1 hour
-        mega_chest: 120 * 60 * 1000  // 2 hours
+        mega_chest: 120 * 60 * 1000, // 2 hours
+        arena_coins: 15 * 60 * 1000  // 15 minutes
     },
 
     init: function () {
@@ -53,22 +54,22 @@ const AdSystem = {
             return;
         }
 
-        let btnId = '';
-        if (type === 'daily') btnId = 'watch-ad-btn';
-        else if (type === 'upgrade') btnId = 'watch-upgrade-ad-btn';
-        else if (type === 'mega_chest') btnId = 'watch-mega-ad-btn';
+        // Simulating a short ad load/view for aesthetic reasons (1s)
+        const overlay = document.getElementById('ad-overlay');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            const timerText = document.getElementById('ad-timer-circle');
+            if (timerText) timerText.textContent = "⏳";
 
-        const btn = document.getElementById(btnId);
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = "⏳...";
-
-        setTimeout(() => {
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                this.giveReward(type);
+                this.updateAllUI();
+            }, 1000);
+        } else {
             this.giveReward(type);
-            btn.innerHTML = originalText;
-            btn.disabled = false;
             this.updateAllUI();
-        }, 2000);
+        }
     },
 
     giveReward: function (type) {
@@ -106,6 +107,11 @@ const AdSystem = {
                 gameState.stats.totalGold += 5000;
                 message = "🔥 رائع! فتحت صندوق الإدارة وحصلت على 5000 ذهبة 🪙!";
             }
+        }
+        else if (type === 'arena_coins') {
+            const amount = 50;
+            gameState.arenaCoins += amount;
+            message = `⚔️ حصلت على ${amount} من عملات الساحة!`;
         }
 
         saveGame();

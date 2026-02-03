@@ -4,6 +4,16 @@ const ASSETS = [
     './index.html',
     './styles.css',
     './game.js',
+    './admin.js',
+    './ads.js',
+    './arena.js',
+    './auth.js',
+    './leaderboard.js',
+    './missions.js',
+    './nameModal.js',
+    './referral.js',
+    './rewards.js',
+    './tutorial.js',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cairo:wght@400;600;700&display=swap'
 ];

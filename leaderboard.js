@@ -50,11 +50,24 @@ const LeaderboardSystem = {
             createdAt: Date.now()
         };
         this.savePlayer(player);
+        console.log('Player created and saved:', player);
+        return player;
+    },
+
+    // Initialize player from cloud data (for sync)
+    initPlayer: function (name, id) {
+        const player = {
+            id: id || (Date.now().toString(36) + Math.random().toString(36).substr(2)),
+            name: name,
+            createdAt: Date.now()
+        };
+        this.savePlayer(player);
+        console.log('Player initialized from cloud:', player);
         return player;
     },
 
     // Submit score to global Firebase Firestore
-    submitScore: async function (playerName, score, wave, swordsForged) {
+    submitScore: async function (playerName, score, wave, swordsForged, equipment, activeCharacter, inventory) {
         if (!db) return;
 
         try {
@@ -67,6 +80,9 @@ const LeaderboardSystem = {
                 score: score,
                 wave: wave,
                 swordsForged: swordsForged,
+                equipment: equipment || { head: null, body: null, weapon: null },
+                activeCharacter: activeCharacter || 'default',
+                inventory: inventory || [],
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 
@@ -101,6 +117,21 @@ const LeaderboardSystem = {
     getPlayerRank: async function (playerName) {
         // لجلب الترتيب الفعلي نحتاج لاستعلام إضافي، للتبسيط سنكتفي بالرتبة من ضمن التوب 10 حالياً
         return null;
+    },
+
+    // Check if name is already taken in Firebase
+    isNameTaken: async function (name) {
+        if (!db) return false;
+        try {
+            const snapshot = await db.collection("leaderboard")
+                .where("name", "==", name)
+                .limit(1)
+                .get();
+            return !snapshot.empty;
+        } catch (error) {
+            console.error("Error checking name uniqueness:", error);
+            return false;
+        }
     }
 };
 

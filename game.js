@@ -6,11 +6,14 @@
 // =====================================================
 // GAME STATE
 // =====================================================
-const gameState = {
+var gameState = {
     // Resources
     gold: 0,
     smithingPoints: 0,
     gems: 0, // العملة الجديدة النادرة
+    arenaCoins: 0, // عملات الساحة
+    arenaRankPoints: 0, // نقاط تصنيف الساحة
+    allianceId: null, // معرف التحالف
 
     // Click power
     clickPower: 1,
@@ -34,9 +37,13 @@ const gameState = {
         starMetal: 0
     },
 
-    // Swords
+    // Equipment slots
+    equipment: {
+        head: null,
+        body: null,
+        weapon: null
+    },
     inventory: [],
-    equippedSword: null,
 
     // Characters System
     ownedCharacters: ['default'],
@@ -57,6 +64,9 @@ const gameState = {
     // Combat
     wave: 1,
     currentEnemy: null,
+    hp: 100,
+    maxHp: 100,
+    defense: 0,
 
     // Prestige
     swordSpirit: 0,
@@ -78,23 +88,42 @@ const gameState = {
 };
 
 const Characters = {
-    'default': { id: 'default', nameAr: "الحداد المبتدئ", icon: "🧙‍♂️", desc: "بطل متوازن، لا توجد علاوات إضافية.", cost: 0 },
-    'berserker': { id: 'berserker', nameAr: "المحارب الهائج", icon: "🧔‍♂️", desc: "زيادة ضرر الهجوم الأساسي.", cost: 5, buffType: 'damage' },
-    'alchemist': { id: 'alchemist', nameAr: "الخيميائي", icon: "🧪", desc: "زيادة كمية المواد المكتسبة من الأعداء.", cost: 10, buffType: 'materials' },
-    'king': { id: 'king', nameAr: "الملك الذهبي", icon: "🤴", desc: "زيادة الذهب المكتسب من هزيمة الأعداء.", cost: 20, buffType: 'gold' },
-    'miner': { id: 'miner', nameAr: "أسطورة المناجم", icon: "⛏️", desc: "زيادة قوة التعدين وفرصة المواد النادرة.", cost: 15, buffType: 'mining' },
-    'smith': { id: 'smith', nameAr: "خبير الحدادة", icon: "⚒️", desc: "زيادة نقاط الحدادة المكتسبة عند النقر.", cost: 25, buffType: 'smithing' },
-    'treasurer': { id: 'treasurer', nameAr: "صائد الكنوز", icon: "🗺️", desc: "زيادة فرصة الحصول على مواد من فئات نادرة.", cost: 30, buffType: 'rarity' },
-    'wise': { id: 'wise', nameAr: "حكيم الأرواح", icon: "🕯️", desc: "زيادة أرواح السيف المكتسبة عند الصعود.", cost: 40, buffType: 'spirit' },
-    'engineer': { id: 'engineer', nameAr: "المهندس الآلي", icon: "⚙️", desc: "زيادة قوة النقر التلقائي.", cost: 35, buffType: 'autoclick' },
-    'luck': { id: 'luck', nameAr: "سيد الحظ", icon: "🎲", desc: "زيادة فرصة النجاح في صنع السيوف النادرة.", cost: 50, buffType: 'luck' }
+    'default': { id: 'default', nameAr: "الحداد المبتدئ", icon: "🧙‍♂️", desc: "بطل متوازن، لا توجد علاوات إضافية.", cost: 0, class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'berserker': { id: 'berserker', nameAr: "المحارب الهائج", icon: "🧔‍♂️", desc: "زيادة ضرر الهجوم الأساسي.", cost: 5, buffType: 'damage', class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'alchemist': { id: 'alchemist', nameAr: "الخيميائي", icon: "🧪", desc: "زيادة كمية المواد المكتسبة من الأعداء.", cost: 10, buffType: 'materials', class: 'mage', allowedTypes: ['staff', 'robe', 'circlet'] },
+    'king': { id: 'king', nameAr: "الملك الذهبي", icon: "🤴", desc: "زيادة الذهب المكتسب من هزيمة الأعداء.", cost: 20, buffType: 'gold', class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'miner': { id: 'miner', nameAr: "أسطورة المناجم", icon: "⛏️", desc: "زيادة قوة التعدين وفرصة المواد النادرة.", cost: 15, buffType: 'mining', class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'smith': { id: 'smith', nameAr: "خبير الحدادة", icon: "⚒️", desc: "زيادة نقاط الحدادة المكتسبة عند النقر.", cost: 25, buffType: 'smithing', class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'treasurer': { id: 'treasurer', nameAr: "صائد الكنوز", icon: "🗺️", desc: "زيادة فرصة الحصول على مواد من فئات نادرة.", cost: 30, buffType: 'rarity', class: 'archer', allowedTypes: ['bow', 'leather_armor', 'hood'] },
+    'wise': { id: 'wise', nameAr: "حكيم الأرواح", icon: "🕯️", desc: "زيادة أرواح السيف المكتسبة عند الصعود.", cost: 40, buffType: 'spirit', class: 'mage', allowedTypes: ['staff', 'robe', 'circlet'] },
+    'engineer': { id: 'engineer', nameAr: "المهندس الآلي", icon: "⚙️", desc: "زيادة قوة النقر التلقائي.", cost: 35, buffType: 'autoclick', class: 'warrior', allowedTypes: ['sword', 'heavy_plate', 'helm'] },
+    'luck': { id: 'luck', nameAr: "سيد الحظ", icon: "🎲", desc: "زيادة فرصة النجاح في صنع السيوف النادرة.", cost: 50, buffType: 'luck', class: 'archer', allowedTypes: ['bow', 'leather_armor', 'hood'] }
 };
 
 // =====================================================
-// GAME CONSTANTS
+// GLOBAL CONSTANTS
 // =====================================================
-const CRAFT_COST = 100;
 const SAVE_KEY = 'bladeWeaver_save';
+const TICK_RATE = 1000;
+const CRAFT_COST = 100;
+
+const ITEM_TYPES = {
+    weapon: {
+        warrior: { type: 'sword', name: 'سيف', icon: '⚔️' },
+        mage: { type: 'staff', name: 'عصا', icon: '🪄' },
+        archer: { type: 'bow', name: 'قوس', icon: '🏹' }
+    },
+    body: {
+        warrior: { type: 'heavy_plate', name: 'درع ثقيل', icon: '🛡️' },
+        mage: { type: 'robe', name: 'رداء سحري', icon: '🥋' },
+        archer: { type: 'leather_armor', name: 'درع جلدي', icon: '👕' }
+    },
+    head: {
+        warrior: { type: 'helm', name: 'خوذة معدنية', icon: '🪖' },
+        mage: { type: 'circlet', name: 'تاج سحري', icon: '👑' },
+        archer: { type: 'hood', name: 'قلنسوة', icon: '👤' }
+    }
+};
 
 const RARITY = {
     common: { name: 'عادي', nameEn: 'common', color: '#9ca3af', chance: 60, multiplier: 1 },
@@ -112,6 +141,15 @@ const LUCK_RARITY = {
     mythic: { chance: 0.3 }
 };
 
+const MATERIAL_TIERS = {
+    basic: { name: 'أساسي', materials: {}, damageBonus: 1, speedBonus: 1, critBonus: 0, sellMultiplier: 1 },
+    iron: { name: 'حديد', materials: { iron: 5 }, damageBonus: 1.3, speedBonus: 1, critBonus: 2, sellMultiplier: 1.5 },
+    steel: { name: 'فولاذي', materials: { iron: 3, steel: 5 }, damageBonus: 1.6, speedBonus: 1.1, critBonus: 5, sellMultiplier: 2 },
+    obsidian: { name: 'سبجي', materials: { steel: 3, obsidian: 5 }, damageBonus: 2, speedBonus: 1.2, critBonus: 8, sellMultiplier: 3 },
+    dragon: { name: 'تنيني', materials: { obsidian: 3, dragonBone: 5 }, damageBonus: 2.5, speedBonus: 1.3, critBonus: 12, sellMultiplier: 5 },
+    star: { name: 'نجمي', materials: { dragonBone: 3, starMetal: 5 }, damageBonus: 3.5, speedBonus: 1.5, critBonus: 20, sellMultiplier: 10 }
+};
+
 const MATERIALS = ['iron', 'steel', 'obsidian', 'dragonBone', 'starMetal'];
 const MATERIAL_NAMES = {
     iron: 'حديد',
@@ -119,58 +157,6 @@ const MATERIAL_NAMES = {
     obsidian: 'سبج',
     dragonBone: 'عظم تنين',
     starMetal: 'معدن نجمي'
-};
-
-// Material tiers for crafting - each tier requires materials and gives bonuses
-const MATERIAL_TIERS = {
-    basic: {
-        name: 'أساسي',
-        materials: {},
-        damageBonus: 1,
-        speedBonus: 1,
-        critBonus: 0,
-        sellMultiplier: 1
-    },
-    iron: {
-        name: 'حديدي',
-        materials: { iron: 5 },
-        damageBonus: 1.3,
-        speedBonus: 1,
-        critBonus: 2,
-        sellMultiplier: 1.5
-    },
-    steel: {
-        name: 'فولاذي',
-        materials: { iron: 3, steel: 5 },
-        damageBonus: 1.6,
-        speedBonus: 1.1,
-        critBonus: 5,
-        sellMultiplier: 2
-    },
-    obsidian: {
-        name: 'سبجي',
-        materials: { steel: 3, obsidian: 5 },
-        damageBonus: 2,
-        speedBonus: 1.2,
-        critBonus: 8,
-        sellMultiplier: 3
-    },
-    dragon: {
-        name: 'تنيني',
-        materials: { obsidian: 3, dragonBone: 5 },
-        damageBonus: 2.5,
-        speedBonus: 1.3,
-        critBonus: 12,
-        sellMultiplier: 5
-    },
-    star: {
-        name: 'نجمي',
-        materials: { dragonBone: 3, starMetal: 5 },
-        damageBonus: 3.5,
-        speedBonus: 1.5,
-        critBonus: 20,
-        sellMultiplier: 10
-    }
 };
 
 // Selected crafting tier
@@ -198,106 +184,113 @@ const UPGRADE_COSTS = {
 // =====================================================
 // DOM ELEMENTS
 // =====================================================
-const DOM = {
-    // Header
-    goldDisplay: document.getElementById('gold-display'),
-    gemDisplay: document.getElementById('gem-display'),
-    spiritDisplay: document.getElementById('spirit-display'),
+let DOM = {};
 
-    // Smithing
-    anvil: document.getElementById('anvil'),
-    hammerStrike: document.getElementById('hammer-strike'),
-    clickFeedback: document.getElementById('click-feedback'),
-    sparks: document.getElementById('sparks'),
-    smithingPoints: document.getElementById('smithing-points'),
-    clickPower: document.getElementById('click-power'),
-    progressFill: document.getElementById('progress-fill'),
-    progressPercent: document.getElementById('progress-percent'),
-    craftBtn: document.getElementById('craft-btn'),
-    luckCraftBtn: document.getElementById('luck-craft-btn'),
+function initDOM() {
+    DOM = {
+        // Header
+        goldDisplay: document.getElementById('gold-display'),
+        gemDisplay: document.getElementById('gem-display'),
+        spiritDisplay: document.getElementById('spirit-display'),
 
-    // Mining
-    miningRock: document.getElementById('mining-rock'),
-    pickaxeAnim: document.getElementById('pickaxe-anim'),
-    miningFeedback: document.getElementById('mining-feedback'),
-    miningPowerDisplay: document.getElementById('mining-power-display'),
+        // Smithing
+        anvil: document.getElementById('anvil'),
+        hammerStrike: document.getElementById('hammer-strike'),
+        clickFeedback: document.getElementById('click-feedback'),
+        sparks: document.getElementById('sparks'),
+        smithingPoints: document.getElementById('smithing-points'),
+        clickPower: document.getElementById('click-power'),
+        progressFill: document.getElementById('progress-fill'),
+        progressPercent: document.getElementById('progress-percent'),
+        craftBtn: document.getElementById('craft-btn'),
+        luckCraftBtn: document.getElementById('luck-btn'),
 
-    // Equipped sword
-    noSword: document.getElementById('no-sword'),
-    swordInfo: document.getElementById('sword-info'),
-    equippedName: document.getElementById('equipped-name'),
-    equippedDamage: document.getElementById('equipped-damage'),
-    equippedSpeed: document.getElementById('equipped-speed'),
-    equippedCrit: document.getElementById('equipped-crit'),
+        // Mining
+        miningRock: document.getElementById('mining-rock'),
+        pickaxeAnim: document.getElementById('pickaxe-anim'),
+        miningFeedback: document.getElementById('mining-feedback'),
+        miningPowerDisplay: document.getElementById('mining-power-display'),
 
-    // Battle
-    waveNumber: document.getElementById('wave-number'),
-    warrior: document.getElementById('warrior'),
-    enemy: document.getElementById('enemy'),
-    enemySprite: document.getElementById('enemy-sprite'),
-    enemyName: document.getElementById('enemy-name'),
-    enemyHpFill: document.getElementById('enemy-hp-fill'),
-    enemyHp: document.getElementById('enemy-hp'),
-    enemyMaxHp: document.getElementById('enemy-max-hp'),
-    battleEffects: document.getElementById('battle-effects'),
-    lootItems: document.getElementById('loot-items'),
+        // Equipped sword
+        noSword: document.getElementById('no-sword'),
+        swordInfo: document.getElementById('sword-info'),
+        equippedName: document.getElementById('equipped-name'),
+        equippedDamage: document.getElementById('equipped-damage'),
+        equippedSpeed: document.getElementById('equipped-speed'),
+        equippedCrit: document.getElementById('equipped-crit'),
 
-    // Materials
-    ironCount: document.getElementById('iron-count'),
-    steelCount: document.getElementById('steel-count'),
-    obsidianCount: document.getElementById('obsidian-count'),
-    dragonboneCount: document.getElementById('dragonbone-count'),
-    starmetalCount: document.getElementById('starmetal-count'),
+        // Battle
+        waveNumber: document.getElementById('current-wave'),
+        warrior: document.getElementById('warrior'),
+        enemy: document.getElementById('enemy'),
+        enemySprite: document.getElementById('enemy-sprite'),
+        enemyName: document.getElementById('enemy-name'),
+        enemyHpFill: document.getElementById('enemy-hp-fill'),
+        enemyHp: document.getElementById('enemy-hp'),
+        enemyMaxHp: document.getElementById('enemy-max-hp'),
+        battleEffects: document.getElementById('battle-effects'),
+        lootItems: document.getElementById('loot-items'),
 
-    // Menu tabs
-    menuTabs: document.querySelectorAll('.menu-tab'),
-    tabPanels: document.querySelectorAll('.tab-panel'),
+        // Materials
+        ironCount: document.getElementById('iron-count'),
+        steelCount: document.getElementById('steel-count'),
+        obsidianCount: document.getElementById('obsidian-count'),
+        dragonboneCount: document.getElementById('dragonbone-count'),
+        starmetalCount: document.getElementById('starmetal-count'),
 
-    // Shop upgrades
-    hammerLevel: document.getElementById('hammer-level'),
-    hammerCost: document.getElementById('hammer-cost'),
-    hammerBtn: document.getElementById('hammer-btn'),
-    bellowsLevel: document.getElementById('bellows-level'),
-    bellowsCost: document.getElementById('bellows-cost'),
-    bellowsBtn: document.getElementById('bellows-btn'),
-    sharpenerLevel: document.getElementById('sharpener-level'),
-    sharpenerCost: document.getElementById('sharpener-cost'),
-    sharpenerBtn: document.getElementById('sharpener-btn'),
-    furnaceLevel: document.getElementById('furnace-level'),
-    furnaceCost: document.getElementById('furnace-cost'),
-    furnaceBtn: document.getElementById('furnace-btn'),
-    pickaxeLevel: document.getElementById('pickaxe-level'),
-    pickaxeCost: document.getElementById('pickaxe-cost'),
-    pickaxeBtn: document.getElementById('pickaxe-btn'),
+        // Menu tabs
+        menuTabs: document.querySelectorAll('.menu-tab'),
+        tabPanels: document.querySelectorAll('.tab-panel'),
 
-    // Inventory
-    inventoryGrid: document.getElementById('inventory-grid'),
+        // Shop upgrades
+        hammerLevel: document.getElementById('hammer-level'),
+        hammerCost: document.getElementById('hammer-cost'),
+        hammerBtn: document.getElementById('hammer-btn'),
+        bellowsLevel: document.getElementById('bellows-level'),
+        bellowsCost: document.getElementById('bellows-cost'),
+        bellowsBtn: document.getElementById('bellows-btn'),
+        sharpenerLevel: document.getElementById('sharpener-level'),
+        sharpenerCost: document.getElementById('sharpener-cost'),
+        sharpenerBtn: document.getElementById('sharpener-btn'),
+        furnaceLevel: document.getElementById('furnace-level'),
+        furnaceCost: document.getElementById('furnace-cost'),
+        furnaceBtn: document.getElementById('furnace-btn'),
+        pickaxeLevel: document.getElementById('pickaxe-level'),
+        pickaxeCost: document.getElementById('pickaxe-cost'),
+        pickaxeBtn: document.getElementById('pickaxe-btn'),
 
-    // Stats
-    totalClicks: document.getElementById('total-clicks'),
-    totalSwords: document.getElementById('total-swords'),
-    totalEnemies: document.getElementById('total-enemies'),
-    highestWave: document.getElementById('highest-wave'),
-    totalGold: document.getElementById('total-gold'),
-    bestSword: document.getElementById('best-sword'),
+        // Inventory
+        inventoryGrid: document.getElementById('inventory-grid'),
 
-    // Prestige
-    prestigeTab: document.getElementById('prestige-tab'),
-    currentSpirits: document.getElementById('current-spirits'),
-    gainedSpirits: document.getElementById('gained-spirits'),
-    prestigeBtn: document.getElementById('prestige-btn'),
+        // Stats
+        totalClicks: document.getElementById('total-clicks'),
+        totalSwords: document.getElementById('total-swords'),
+        totalEnemies: document.getElementById('total-enemies'),
+        highestWave: document.getElementById('highest-wave'),
+        totalGold: document.getElementById('total-gold'),
+        bestSword: document.getElementById('best-sword'),
 
-    // Modal
-    craftModal: document.getElementById('craft-modal'),
-    newSword: document.getElementById('new-sword'),
-    modalRarity: document.getElementById('modal-rarity'),
-    modalSwordName: document.getElementById('modal-sword-name'),
-    modalDamage: document.getElementById('modal-damage'),
-    modalSpeed: document.getElementById('modal-speed'),
-    modalCrit: document.getElementById('modal-crit'),
-    equipNewBtn: document.getElementById('equip-new-btn'),
-    keepBtn: document.getElementById('keep-btn')
-};
+        // Prestige
+        prestigeTab: document.getElementById('prestige-tab'),
+        currentSpirits: document.getElementById('current-spirits'),
+        gainedSpirits: document.getElementById('gained-spirits'),
+        prestigeBtn: document.getElementById('prestige-btn'),
+
+        // Modal
+        craftModal: document.getElementById('craft-modal'),
+        newSword: document.getElementById('new-sword'),
+        modalRarity: document.getElementById('modal-rarity'),
+        modalSwordName: document.getElementById('modal-sword-name'),
+        modalDamage: document.getElementById('modal-damage'),
+        modalSpeed: document.getElementById('modal-speed'),
+        modalCrit: document.getElementById('modal-crit'),
+        equipNewBtn: document.getElementById('equip-new-btn'),
+        keepBtn: document.getElementById('keep-btn'),
+
+        // Arena/Alliance
+        arenaCoinDisplay: document.getElementById('arena-coin-display'),
+    };
+}
 
 // =====================================================
 // UTILITY FUNCTIONS
@@ -319,6 +312,29 @@ function randomFloat(min, max) {
 function getUpgradeCost(type) {
     const config = UPGRADE_COSTS[type];
     return Math.floor(config.base * Math.pow(config.multiplier, gameState.upgrades[type]));
+}
+
+function recalculatePlayerStats() {
+    let baseHp = 100;
+    let baseDef = 0;
+
+    // Add equipment stats
+    if (gameState.equipment.body) {
+        baseHp += gameState.equipment.body.hp || 0;
+        baseDef += gameState.equipment.body.defense || 0;
+    }
+
+    if (gameState.equipment.head) {
+        baseHp += gameState.equipment.head.hp || 0;
+        baseDef += gameState.equipment.head.defense || 0;
+    }
+
+    gameState.maxHp = baseHp;
+    gameState.defense = baseDef;
+
+    // Cap current HP
+    if (gameState.hp > gameState.maxHp) gameState.hp = gameState.maxHp;
+    // Don't heal automatically on recalc, preventing exploit
 }
 
 // =====================================================
@@ -376,6 +392,23 @@ function createSparks() {
 }
 
 // =====================================================
+// ITEM ICON HELPER
+// =====================================================
+function getItemIcon(item) {
+    // Get icon from ITEM_TYPES based on category and class
+    if (item.category && item.class && ITEM_TYPES[item.category]?.[item.class]) {
+        return ITEM_TYPES[item.category][item.class].icon;
+    }
+    // Fallback icons based on category
+    const fallbacks = {
+        weapon: '⚔️',
+        body: '🛡️',
+        head: '🪖'
+    };
+    return fallbacks[item.category] || '⚔️';
+}
+
+// =====================================================
 // CRAFTING SYSTEM
 // =====================================================
 function canCraft(tier = selectedCraftTier) {
@@ -388,10 +421,13 @@ function canCraft(tier = selectedCraftTier) {
     return true;
 }
 
-function craftSword() {
-    if (!canCraft(selectedCraftTier)) return;
-
+function craftItem() {
+    const activeChar = Characters[gameState.activeCharacter] || Characters.default;
+    const category = selectedCategory || 'weapon';
     const tierConfig = MATERIAL_TIERS[selectedCraftTier];
+    const typeInfo = ITEM_TYPES[category][activeChar.class];
+
+    if (!canCraft(selectedCraftTier)) return;
 
     // Consume smithing points
     gameState.smithingPoints -= CRAFT_COST;
@@ -405,38 +441,60 @@ function craftSword() {
     const rarity = determineRarity();
     const rarityConfig = RARITY[rarity];
 
-    // Calculate base stats with all bonuses
+    // Calculate base stats
     const spiritBonus = 1 + gameState.swordSpirit;
     const sharpenerBonus = 1 + (gameState.upgrades.sharpener * 0.1);
-    const materialDamageBonus = tierConfig.damageBonus;
-    const materialCritBonus = tierConfig.critBonus;
-    const materialSpeedBonus = tierConfig.speedBonus;
 
-    const baseDamage = random(5, 15) * rarityConfig.multiplier * spiritBonus * sharpenerBonus * materialDamageBonus;
-    const baseSpeed = randomFloat(0.8, 1.5) * materialSpeedBonus;
-    const baseCrit = random(5, 15) + materialCritBonus + (rarity === 'mythic' ? 20 : rarity === 'legendary' ? 10 : 0);
-
-    const sword = {
+    let item = {
         id: Date.now(),
-        name: generateSwordName(rarity, selectedCraftTier),
         rarity: rarity,
         tier: selectedCraftTier,
-        damage: Math.floor(baseDamage),
-        attackSpeed: parseFloat(baseSpeed.toFixed(2)),
-        critChance: Math.min(baseCrit, 80), // Cap at 80%
-        sellValue: Math.floor(baseDamage * 2 * tierConfig.sellMultiplier)
+        category: category,
+        subType: typeInfo.type,
+        class: activeChar.class,
+        icon: typeInfo.icon
     };
 
-    gameState.stats.totalSwords++;
-    if (sword.damage > gameState.stats.bestSwordDamage) {
-        gameState.stats.bestSwordDamage = sword.damage;
+    if (category === 'weapon') {
+        const baseDamage = random(5, 15) * rarityConfig.multiplier * spiritBonus * sharpenerBonus * tierConfig.damageBonus;
+        const baseSpeed = randomFloat(0.8, 1.5) * tierConfig.speedBonus;
+        const baseCrit = random(5, 15) + tierConfig.critBonus + (rarity === 'mythic' ? 20 : rarity === 'legendary' ? 10 : 0);
+
+        item.name = generateItemName(rarity, selectedCraftTier, typeInfo.name);
+        item.damage = Math.floor(baseDamage);
+        item.attackSpeed = parseFloat(baseSpeed.toFixed(2));
+        item.critChance = Math.min(baseCrit, 80);
+    } else {
+        // Armor stats: HP and Defense
+        const baseHp = random(20, 100) * rarityConfig.multiplier * tierConfig.damageBonus; // reusable multiplier
+        const baseDef = random(1, 10) * rarityConfig.multiplier;
+
+        item.name = generateItemName(rarity, selectedCraftTier, typeInfo.name);
+        item.hp = Math.floor(baseHp);
+        item.defense = Math.floor(baseDef);
     }
 
-    // Show sword modal
-    showNewSwordModal(sword);
+    item.sellValue = Math.floor((item.damage || item.hp / 5) * 2 * tierConfig.sellMultiplier);
 
+    gameState.stats.totalSwords++; // Keeping the stat name
+    if (item.damage && item.damage > gameState.stats.bestSwordDamage) {
+        gameState.stats.bestSwordDamage = item.damage;
+    }
+
+    showNewItemModal(item);
     updateUI();
-    saveGame();
+    saveGame(true); // Force cloud save on craft
+}
+
+function generateItemName(rarity, tier, baseTypeName) {
+    const prefix = SWORD_PREFIXES[random(0, SWORD_PREFIXES.length - 1)];
+    const tierName = MATERIAL_TIERS[tier].name;
+
+    if (rarity === 'common') {
+        return prefix + ' ' + tierName + ' ' + baseTypeName;
+    }
+    const suffix = SWORD_SUFFIXES[random(0, SWORD_SUFFIXES.length - 1)];
+    return prefix + ' ' + suffix + ' (' + tierName + ' ' + baseTypeName + ')';
 }
 
 function determineRarity() {
@@ -487,7 +545,7 @@ function sellSword(swordId) {
 
     updateInventoryUI();
     updateUI();
-    saveGame();
+    saveGame(true); // Force cloud save on sell
 }
 
 // Sell all non-equipped swords
@@ -506,7 +564,7 @@ function sellAllSwords() {
 
     updateInventoryUI();
     updateUI();
-    saveGame();
+    saveGame(true); // Force cloud save on sell all
 }
 
 // Select crafting tier
@@ -546,7 +604,7 @@ function craftLuckSword() {
     gameState.stats.totalSwords++;
     showNewSwordModal(sword);
     updateUI();
-    saveGame();
+    saveGame(true); // Force cloud save on luck craft
 }
 
 function determineRarity(isLuckCraft = false) {
@@ -587,11 +645,19 @@ function handleRockClick() {
 
     gameState.smithingPoints += pointsGained;
 
-    // Small chance for materials
-    let droppedMat = null;
-    if (Math.random() < 0.1 + (miningPower * 0.01)) {
-        const matIndex = Math.min(Math.floor(gameState.wave / 15), MATERIALS.length - 1);
-        const type = MATERIALS[random(0, matIndex)];
+    // Updated Mining logic: Chance for all materials with rarity
+    if (Math.random() < 0.15 + (miningPower * 0.01)) {
+        const roll = Math.random() * 100;
+        let type = 'iron';
+
+        // Rarity chances based on pickaxe level
+        const bonus = miningPower * 1;
+        if (roll < 2 + bonus * 0.1) type = 'starMetal';
+        else if (roll < 10 + bonus * 0.3) type = 'dragonBone';
+        else if (roll < 30 + bonus * 0.5) type = 'obsidian';
+        else if (roll < 60 + bonus * 0.8) type = 'steel';
+        else type = 'iron';
+
         const amount = 1;
         gameState.materials[type] += amount;
         droppedMat = { type, amount };
@@ -627,35 +693,62 @@ function showMiningFeedback(points, material) {
     setTimeout(() => feedback.remove(), 800);
 }
 
-function showNewSwordModal(sword) {
-    const rarityConfig = RARITY[sword.rarity];
+function showNewItemModal(item) {
+    const rarityConfig = RARITY[item.rarity];
+    const categoryNames = { weapon: 'سلاح', body: 'درع', head: 'خوذة' };
 
     DOM.newSword.className = 'new-sword ' + rarityConfig.nameEn;
-    DOM.modalRarity.textContent = rarityConfig.name;
-    DOM.modalSwordName.textContent = sword.name;
-    DOM.modalDamage.textContent = sword.damage;
-    DOM.modalSpeed.textContent = sword.attackSpeed.toFixed(2);
-    DOM.modalCrit.textContent = sword.critChance + '%';
+    DOM.modalRarity.textContent = rarityConfig.name + ' (' + categoryNames[item.category] + ')';
+    DOM.modalSwordName.textContent = item.name;
 
-    // Store sword reference for button handlers
-    DOM.craftModal.dataset.swordId = sword.id;
-    gameState._tempSword = sword;
+    // Switch between damage/speed and HP/Def
+    if (item.category === 'weapon') {
+        document.getElementById('modal-damage-row').style.display = 'flex';
+        document.getElementById('modal-speed-row').style.display = 'flex';
+        document.getElementById('modal-crit-row').style.display = 'flex';
+        document.getElementById('modal-hp-row').style.display = 'none';
+        document.getElementById('modal-def-row').style.display = 'none';
 
+        DOM.modalDamage.textContent = item.damage;
+        DOM.modalSpeed.textContent = item.attackSpeed.toFixed(2);
+        DOM.modalCrit.textContent = item.critChance + '%';
+    } else {
+        document.getElementById('modal-damage-row').style.display = 'none';
+        document.getElementById('modal-speed-row').style.display = 'none';
+        document.getElementById('modal-crit-row').style.display = 'none';
+        document.getElementById('modal-hp-row').style.display = 'flex';
+        document.getElementById('modal-def-row').style.display = 'flex';
+
+        document.getElementById('modal-hp').textContent = item.hp;
+        document.getElementById('modal-def').textContent = item.defense;
+    }
+
+    // Store item reference
+    gameState._tempSword = item; // Keep name for compatibility with listeners
     DOM.craftModal.classList.remove('hidden');
 }
 
-function equipSword(sword) {
-    gameState.equippedSword = sword;
-    updateEquippedSwordUI();
+function equipItem(item) {
+    const activeChar = Characters[gameState.activeCharacter];
+
+    // Class compatibility check
+    if (!activeChar.allowedTypes.includes(item.subType)) {
+        alert(`⚠️ هذه الشخصية لا تجيد استخدام ${item.name}!`);
+        return;
+    }
+
+    gameState.equipment[item.category] = item;
+    recalculatePlayerStats();
+    updateEquippedUI();
+    saveGame(true); // Force cloud save on equip
 }
 
-function addToInventory(sword) {
-    if (gameState.inventory.length >= 20) {
-        // Remove lowest damage sword if inventory is full
-        gameState.inventory.sort((a, b) => a.damage - b.damage);
-        gameState.inventory.shift();
+function addToInventory(item) {
+    if (gameState.inventory.length >= 30) {
+        alert("⚠️ الحقيبة ممتلئة!");
+        return;
     }
-    gameState.inventory.push(sword);
+    gameState.inventory.push(item);
     updateInventoryUI();
 }
 
@@ -676,11 +769,18 @@ function spawnEnemy() {
     const waveMultiplier = Math.pow(1.1, gameState.wave) * (isBoss ? 4 : 1);
     const hp = Math.floor(baseEnemy.baseHp * waveMultiplier);
 
+    // Enemy Damage Scaling - Forces armor upgrades
+    // Starts weak (5-10) but scales up to hundreds
+    const baseDmg = 5;
+    const damageMultiplier = Math.pow(1.12, gameState.wave) * (isBoss ? 2 : 1);
+    const damage = Math.floor(baseDmg * damageMultiplier);
+
     gameState.currentEnemy = {
         name: baseEnemy.name,
         sprite: baseEnemy.sprite,
         hp: hp,
-        maxHp: hp
+        maxHp: hp,
+        damage: damage
     };
 
     updateEnemyUI();
@@ -689,14 +789,15 @@ function spawnEnemy() {
 function attackEnemy() {
     if (!gameState.currentEnemy) return;
 
-    // Default stats if no sword is equipped
+    // Default stats if no weapon is equipped
     let damage = 1;
     let critChance = 5;
     let isCrit = false;
 
-    if (gameState.equippedSword) {
-        damage = gameState.equippedSword.damage;
-        critChance = gameState.equippedSword.critChance;
+    const weapon = gameState.equipment.weapon;
+    if (weapon) {
+        damage = weapon.damage;
+        critChance = weapon.critChance;
     }
 
     // Berserker Buff: Damage Multiplier
@@ -729,6 +830,95 @@ function attackEnemy() {
     updateEnemyUI();
 }
 
+function enemyAttackPlayer() {
+    if (!gameState.currentEnemy) return;
+
+    // Calculate Damage
+    let enemyDmg = gameState.currentEnemy.damage || 10;
+
+    // Mitigate with defense (Simple mitigation: Damage - Defense)
+    // Minimum 1 damage (or 5% of enemy damage if defense is huge)
+    const mitigation = gameState.defense;
+    let actualDmg = Math.max(Math.ceil(enemyDmg * 0.05), enemyDmg - mitigation);
+
+    // Apply damage
+    gameState.hp -= actualDmg;
+
+    // Show damage on player
+    showPlayerDamage(actualDmg);
+
+    // Check for death
+    if (gameState.hp <= 0) {
+        handlePlayerDeath();
+    }
+
+    // Update UI
+    updatePlayerHpUI();
+}
+
+function handlePlayerDeath() {
+    gameState.hp = 0;
+    gameState.currentEnemy = null; // Remove enemy
+
+    // Calculate fallback level (nearest 10)
+    // 33 -> 30, 28 -> 20, 8 -> 1 (min 1)
+    let newWave = Math.floor(gameState.wave / 10) * 10;
+    if (newWave < 1) newWave = 1;
+    // If we are exactly at a decade (e.g. 30), we fall back to 20? 
+    // User said "Lose at 33 go to 30", "Lose in 28 go to 20".
+    // If lose at 30? Usually means failing 30. So returning to 30 is just restarting.
+    // If I lose at 30, I should probably go to 20? 
+    // "Lose in 33 -> 30". "Lose in 28 -> 20".
+    // Let's stick to floor/10 * 10. If at 30, stay at 30.
+
+    if (newWave === 0) newWave = 1;
+
+    const lostWave = gameState.wave;
+    gameState.wave = newWave;
+
+    // Restore HP
+    gameState.hp = gameState.maxHp;
+
+    // Notifications
+    if (window.AdminSystem) {
+        AdminSystem.sendNotification(`💀 لقد قتلك الوحش! تراجعت من الموجة ${lostWave} إلى ${newWave}`, 'error');
+    } else {
+        alert(`💀 لقد قتلك الوحش! تراجعت من الموجة ${lostWave} إلى ${newWave}`);
+    }
+
+    // Reset combat
+    spawnEnemy();
+    updateUI();
+    saveGame();
+}
+
+function showPlayerDamage(damage) {
+    // Show damage number near player HP bar or character
+    const damageEl = document.createElement('div');
+    damageEl.className = 'damage-number player-damage';
+    damageEl.textContent = `-${damage}`;
+    damageEl.style.left = '20%';
+    damageEl.style.top = '40%';
+    damageEl.style.color = 'red';
+
+    document.querySelector('.battle-arena').appendChild(damageEl);
+
+    setTimeout(() => {
+        damageEl.classList.add('float-up');
+        setTimeout(() => damageEl.remove(), 800);
+    }, 50);
+}
+
+function updatePlayerHpUI() {
+    const hpFill = document.getElementById('player-hp-fill');
+    const hpText = document.getElementById('player-hp');
+
+    if (hpFill && hpText) {
+        const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
+        hpFill.style.width = pct + '%';
+        hpText.textContent = `${gameState.hp}/${gameState.maxHp}`;
+    }
+}
 function showDamageNumber(damage, isCrit) {
     const damageEl = document.createElement('div');
     damageEl.className = 'damage-number' + (isCrit ? ' crit' : '');
@@ -1085,6 +1275,22 @@ function updateUI() {
     DOM.goldDisplay.textContent = formatNumber(gameState.gold);
     if (DOM.gemDisplay) DOM.gemDisplay.textContent = formatNumber(gameState.gems);
     DOM.spiritDisplay.textContent = formatNumber(gameState.swordSpirit);
+    if (DOM.arenaCoinDisplay) DOM.arenaCoinDisplay.textContent = formatNumber(gameState.arenaCoins);
+
+    // Arena/Alliance UI
+    if (window.ArenaSystem) {
+        const rankEl = document.getElementById('arena-rank-display');
+        const streakEl = document.getElementById('arena-streak-display');
+        const winsEl = document.getElementById('arena-wins-display');
+        const powerEl = document.getElementById('arena-power-display');
+
+        if (rankEl) rankEl.textContent = gameState.arenaRankPoints || 0;
+        if (streakEl && gameState.arenaStats) streakEl.textContent = gameState.arenaStats.winStreak || 0;
+        if (winsEl && gameState.arenaStats) winsEl.textContent = gameState.arenaStats.totalWins || 0;
+        if (powerEl) powerEl.textContent = ArenaSystem.calculatePowerScore(gameState.equipment);
+
+        ArenaSystem.updateAllianceUI();
+    }
 
     // Smithing
     DOM.smithingPoints.textContent = formatNumber(gameState.smithingPoints);
@@ -1098,15 +1304,19 @@ function updateUI() {
     // Craft button
     DOM.craftBtn.disabled = !canCraft();
 
+    // Equipment
+    updateEquippedUI();
+    updateInventoryUI();
+
     // Wave
     DOM.waveNumber.textContent = gameState.wave;
 
     // Materials
-    DOM.ironCount.textContent = gameState.materials.iron;
-    DOM.steelCount.textContent = gameState.materials.steel;
-    DOM.obsidianCount.textContent = gameState.materials.obsidian;
-    DOM.dragonboneCount.textContent = gameState.materials.dragonBone;
-    DOM.starmetalCount.textContent = gameState.materials.starMetal;
+    DOM.ironCount.textContent = formatNumber(gameState.materials.iron);
+    DOM.steelCount.textContent = formatNumber(gameState.materials.steel);
+    DOM.obsidianCount.textContent = formatNumber(gameState.materials.obsidian);
+    DOM.dragonboneCount.textContent = formatNumber(gameState.materials.dragonBone);
+    DOM.starmetalCount.textContent = formatNumber(gameState.materials.starMetal);
 
     // Upgrades
     updateUpgradeUI();
@@ -1127,6 +1337,9 @@ function updateUI() {
     if (DOM.luckCraftBtn) {
         DOM.luckCraftBtn.disabled = gameState.smithingPoints < 150;
     }
+
+    // Player HP
+    updatePlayerHpUI();
 }
 
 function updateUpgradeUI() {
@@ -1151,23 +1364,30 @@ function updateUpgradeUI() {
     }
 }
 
-function updateEquippedSwordUI() {
-    if (gameState.equippedSword) {
-        DOM.noSword.style.display = 'none';
-        DOM.swordInfo.classList.remove('hidden');
+function updateEquippedUI() {
+    const slots = ['head', 'weapon', 'body'];
 
-        const sword = gameState.equippedSword;
-        const rarityConfig = RARITY[sword.rarity];
+    slots.forEach(slot => {
+        const item = gameState.equipment[slot];
+        const slotEl = document.getElementById(`equip-${slot}`);
+        if (!slotEl) return;
 
-        DOM.equippedName.textContent = sword.name;
-        DOM.equippedName.style.color = rarityConfig.color;
-        DOM.equippedDamage.textContent = sword.damage;
-        DOM.equippedSpeed.textContent = sword.attackSpeed.toFixed(2);
-        DOM.equippedCrit.textContent = sword.critChance + '%';
-    } else {
-        DOM.noSword.style.display = 'block';
-        DOM.swordInfo.classList.add('hidden');
-    }
+        const nameEl = slotEl.querySelector('.slot-name');
+        const iconEl = slotEl.querySelector('.slot-icon');
+
+        if (item) {
+            const rarityConfig = RARITY[item.rarity];
+            nameEl.textContent = item.name;
+            nameEl.style.color = rarityConfig.color;
+            iconEl.textContent = item.icon || (slot === 'weapon' ? '⚔️' : slot === 'head' ? '🪖' : '🛡️');
+        } else {
+            nameEl.textContent = 'فارغ';
+            nameEl.style.color = '#aaa';
+            iconEl.textContent = (slot === 'weapon' ? '⚔️' : slot === 'head' ? '🪖' : '🛡️');
+        }
+    });
+
+    // Update global damage/hp/def in future if needed
 }
 
 function updateEnemyUI() {
@@ -1183,70 +1403,252 @@ function updateEnemyUI() {
 
 function updateInventoryUI() {
     if (gameState.inventory.length === 0) {
-        DOM.inventoryGrid.innerHTML = '<div class="empty-inventory">لا توجد سيوف - اصنع سيفك الأول!</div>';
+        DOM.inventoryGrid.innerHTML = `
+            <div class="empty-inventory" style="
+                text-align: center;
+                padding: 60px 20px;
+                background: linear-gradient(135deg, rgba(255,215,0,0.05), rgba(255,215,0,0.15));
+                border: 2px dashed rgba(255,215,0,0.3);
+                border-radius: 15px;
+                color: #ffd700;
+                font-size: 1.1rem;
+            ">
+                <div style="font-size: 4rem; margin-bottom: 15px;">📦</div>
+                <div style="font-weight: bold; margin-bottom: 8px;">الحقيبة فارغة</div>
+                <div style="font-size: 0.9rem; color: #aaa;">اصنع معداتك الأولى لتبدأ مغامرتك!</div>
+            </div>
+        `;
         return;
     }
 
     DOM.inventoryGrid.innerHTML = '';
 
-    // Add sell all button if there are non-equipped swords
-    const equippedId = gameState.equippedSword ? gameState.equippedSword.id : null;
-    const sellableSwords = gameState.inventory.filter(s => s.id !== equippedId);
+    // Check if item is equipped in any slot
+    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
 
-    if (sellableSwords.length > 0) {
-        const totalValue = sellableSwords.reduce((sum, s) => sum + (s.sellValue || Math.floor(s.damage * 2)), 0);
-        const sellAllBtn = document.createElement('button');
-        sellAllBtn.className = 'sell-all-btn';
-        sellAllBtn.innerHTML = `💰 بيع الكل (${sellableSwords.length} سيوف) - ${formatNumber(totalValue)} ذهب`;
-        sellAllBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm('هل تريد بيع جميع السيوف غير المجهزة؟')) {
-                sellAllSwords();
-            }
-        });
-        DOM.inventoryGrid.appendChild(sellAllBtn);
-    }
+    gameState.inventory.forEach(item => {
+        const isEquipped = equippedIds.includes(item.id);
+        const rarityConfig = RARITY[item.rarity];
 
-    // Sort by damage descending
-    const sortedInventory = [...gameState.inventory].sort((a, b) => b.damage - a.damage);
-
-    sortedInventory.forEach(sword => {
-        const rarityConfig = RARITY[sword.rarity];
-        const isEquipped = gameState.equippedSword && gameState.equippedSword.id === sword.id;
-        const sellValue = sword.sellValue || Math.floor(sword.damage * 2);
+        // Get category display name
+        const categoryNames = {
+            weapon: 'سلاح',
+            body: 'درع',
+            head: 'خوذة'
+        };
+        const categoryName = categoryNames[item.category] || 'معدات';
 
         const card = document.createElement('div');
-        card.className = 'sword-card ' + rarityConfig.nameEn;
-        card.innerHTML = `
-            <div class="rarity-badge">${rarityConfig.name}</div>
-            <div class="sword-icon">🗡️</div>
-            <div class="sword-name">${sword.name}</div>
-            <div class="sword-stats">
-                ⚔️${sword.damage} ⚡${sword.attackSpeed} 💥${sword.critChance}%
-            </div>
-            ${isEquipped ? '<div class="equip-indicator">مجهز</div>' :
-                `<div class="sword-actions">
-                    <button class="equip-btn-small">تجهيز</button>
-                    <button class="sell-btn-small">بيع 🪙${formatNumber(sellValue)}</button>
-                </div>`
-            }
+        card.className = `inventory-card ${item.rarity}`;
+
+        // Beautiful gradient background based on rarity
+        const gradients = {
+            common: 'linear-gradient(135deg, rgba(156,163,175,0.1), rgba(156,163,175,0.2))',
+            rare: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.25))',
+            epic: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.25))',
+            legendary: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.25))',
+            mythic: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.25))'
+        };
+
+        card.style.cssText = `
+            background: ${gradients[item.rarity]};
+            border: 2px solid ${rarityConfig.color};
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         `;
 
-        if (!isEquipped) {
-            card.querySelector('.equip-btn-small').addEventListener('click', (e) => {
-                e.stopPropagation();
-                equipSword(sword);
-                updateInventoryUI();
-                updateEquippedSwordUI();
-            });
-            card.querySelector('.sell-btn-small').addEventListener('click', (e) => {
-                e.stopPropagation();
-                sellSword(sword.id);
-            });
+        // Hover effect
+        card.onmouseenter = () => {
+            card.style.transform = 'translateY(-5px) scale(1.02)';
+            card.style.boxShadow = `0 8px 25px ${rarityConfig.color}40`;
+        };
+        card.onmouseleave = () => {
+            card.style.transform = 'translateY(0) scale(1)';
+            card.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+        };
+
+        let statsHtml = '';
+        if (item.category === 'weapon') {
+            statsHtml = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الضرر</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">⚔️ ${formatNumber(item.damage)}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">السرعة</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">⚡ ${item.attackSpeed}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center; grid-column: span 2;">
+                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الضربة الحرجة</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">💥 ${item.critChance}%</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            statsHtml = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الصحة</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">❤️ ${formatNumber(item.hp)}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الدفاع</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">🛡️ ${item.defense}</div>
+                    </div>
+                </div>
+            `;
         }
+
+        const tierNames = {
+            basic: 'أساسي',
+            iron: 'حديدي',
+            steel: 'فولاذي',
+            obsidian: 'سبجي',
+            dragon: 'تنيني',
+            star: 'نجمي'
+        };
+
+        card.innerHTML = `
+            ${isEquipped ? `
+                <div style="
+                    position: absolute;
+                    top: -8px;
+                    right: -8px;
+                    background: linear-gradient(135deg, #2ecc71, #27ae60);
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    box-shadow: 0 3px 10px rgba(46,204,113,0.5);
+                    z-index: 10;
+                ">✓ مجهز</div>
+            ` : ''}
+            
+            <div style="text-align: center; margin-bottom: 10px;">
+                <div style="
+                    font-size: 3.5rem;
+                    margin-bottom: 8px;
+                    filter: drop-shadow(0 0 10px ${rarityConfig.color});
+                ">${item.icon || getItemIcon(item)}</div>
+                
+                <div style="
+                    font-size: 0.7rem;
+                    color: ${rarityConfig.color};
+                    font-weight: bold;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 5px;
+                ">${rarityConfig.name} • ${categoryName}</div>
+                
+                <div style="
+                    font-size: 0.9rem;
+                    font-weight: bold;
+                    color: #fff;
+                    margin-bottom: 3px;
+                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                ">${item.name}</div>
+                
+                <div style="
+                    font-size: 0.7rem;
+                    color: #aaa;
+                    background: rgba(0,0,0,0.3);
+                    display: inline-block;
+                    padding: 3px 10px;
+                    border-radius: 10px;
+                ">${tierNames[item.tier] || 'عادي'}</div>
+            </div>
+
+            ${statsHtml}
+
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                ${!isEquipped ? `
+                    <button onclick="equipItemById(${item.id})" style="
+                        flex: 1;
+                        background: linear-gradient(135deg, #2ecc71, #27ae60);
+                        border: none;
+                        color: white;
+                        padding: 10px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        font-size: 0.9rem;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        box-shadow: 0 3px 10px rgba(46,204,113,0.3);
+                    " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 15px rgba(46,204,113,0.5)'"
+                       onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 3px 10px rgba(46,204,113,0.3)'">
+                        🎯 تجهيز
+                    </button>
+                ` : ''}
+                
+                <button onclick="sellSword(${item.id})" style="
+                    ${isEquipped ? 'flex: 1' : 'flex: 0.8'};
+                    background: linear-gradient(135deg, #f59e0b, #d97706);
+                    border: none;
+                    color: white;
+                    padding: 10px;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    font-size: 0.9rem;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                    box-shadow: 0 3px 10px rgba(245,158,11,0.3);
+                " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 15px rgba(245,158,11,0.5)'"
+                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 3px 10px rgba(245,158,11,0.3)'">
+                    💰 ${formatNumber(item.sellValue)}
+                </button>
+            </div>
+        `;
 
         DOM.inventoryGrid.appendChild(card);
     });
+}
+
+window.equipItemById = function (id) {
+    const item = gameState.inventory.find(i => i.id === id);
+    if (item) equipItem(item);
+};
+
+function sellSword(id) {
+    // Check if equipped
+    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
+    if (equippedIds.includes(id)) {
+        alert("⚠️ لا يمكنك بيع معدات مجهزة!");
+        return;
+    }
+
+    const index = gameState.inventory.findIndex(i => i.id === id);
+    if (index === -1) return;
+
+    const item = gameState.inventory[index];
+    gameState.gold += item.sellValue;
+    gameState.stats.totalGold += item.sellValue;
+
+    gameState.inventory.splice(index, 1);
+    updateUI();
+    saveGame(true); // Force cloud save
+}
+
+function sellAllSwords() {
+    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
+    let totalValue = 0;
+
+    gameState.inventory = gameState.inventory.filter(item => {
+        if (equippedIds.includes(item.id)) return true;
+        totalValue += item.sellValue;
+        return false;
+    });
+
+    gameState.gold += totalValue;
+    gameState.stats.totalGold += totalValue;
+
+    updateUI();
+    saveGame(true); // Force cloud save
 }
 
 // Update crafting UI to show material tier options
@@ -1298,12 +1700,34 @@ function updateStatsUI() {
 // =====================================================
 // SAVE/LOAD SYSTEM
 // =====================================================
-function saveGame() {
+const CLOUD_SAVE_INTERVAL = 30000; // 30 seconds
+let lastCloudSaveTime = 0;
+
+function saveGame(forceCloud = false) {
     const saveData = {
         ...gameState,
         _tempSword: undefined // Don't save temp data
     };
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+
+    // Cloud save if authenticated
+    if (window.AuthService && typeof firebase !== 'undefined') {
+        const user = firebase.auth().currentUser;
+        if (user) {
+            const now = Date.now();
+            if (forceCloud || now - lastCloudSaveTime > CLOUD_SAVE_INTERVAL) {
+                // Include player name, equipment, and character in cloud data
+                const cloudData = {
+                    ...gameState,
+                    playerName: playerName,
+                    equipment: gameState.equipment,
+                    activeCharacter: gameState.activeCharacter
+                };
+                AuthService.saveCloudData(user.uid, cloudData);
+                lastCloudSaveTime = now;
+            }
+        }
+    }
 }
 
 function loadGame() {
@@ -1330,6 +1754,14 @@ function loadGame() {
 
         // Ensure new fields exist
         if (gameState.upgrades.pickaxe === undefined) gameState.upgrades.pickaxe = 1;
+
+        // Ensure HP exists
+        if (gameState.hp === undefined) gameState.hp = 100;
+        if (gameState.maxHp === undefined) gameState.maxHp = 100;
+
+        recalculatePlayerStats();
+    } else {
+        recalculatePlayerStats();
     }
 }
 
@@ -1342,7 +1774,13 @@ let autoClickInterval = null;
 function startCombatLoop() {
     combatInterval = setInterval(() => {
         if (gameState.currentEnemy) {
+            // Player attacks enemy
             attackEnemy();
+
+            // Enemy attacks player (if still alive)
+            if (gameState.currentEnemy && gameState.currentEnemy.hp > 0) {
+                enemyAttackPlayer();
+            }
         }
     }, 1000);
 }
@@ -1368,23 +1806,25 @@ function startAutoClickLoop() {
 // EVENT LISTENERS
 // =====================================================
 function setupEventListeners() {
-    // Anvil click
-    DOM.anvil.addEventListener('click', handleAnvilClick);
+    const addSafeListener = (el, event, callback) => {
+        if (el) {
+            el.addEventListener(event, callback);
+        }
+    };
 
-    // Craft button
-    DOM.craftBtn.addEventListener('click', craftSword);
+    // Anvil click
+    addSafeListener(DOM.anvil, 'click', handleAnvilClick);
 
     // Modal buttons
-    DOM.equipNewBtn.addEventListener('click', () => {
+    addSafeListener(DOM.equipNewBtn, 'click', () => {
         if (gameState._tempSword) {
-            equipSword(gameState._tempSword);
+            equipItem(gameState._tempSword);
             addToInventory(gameState._tempSword);
-            updateEquippedSwordUI();
         }
         closeModal();
     });
 
-    DOM.keepBtn.addEventListener('click', () => {
+    addSafeListener(DOM.keepBtn, 'click', () => {
         if (gameState._tempSword) {
             addToInventory(gameState._tempSword);
         }
@@ -1392,7 +1832,7 @@ function setupEventListeners() {
     });
 
     // Close modal on background click
-    DOM.craftModal.addEventListener('click', (e) => {
+    addSafeListener(DOM.craftModal, 'click', (e) => {
         if (e.target === DOM.craftModal) {
             if (gameState._tempSword) {
                 addToInventory(gameState._tempSword);
@@ -1402,29 +1842,52 @@ function setupEventListeners() {
     });
 
     // Tab switching
-    DOM.menuTabs.forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    if (DOM.menuTabs) {
+        DOM.menuTabs.forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+    }
+
+    // New Listeners
+    const refineBtn = document.getElementById('refine-materials-btn');
+    if (refineBtn) refineBtn.onclick = () => window.refineMaterials();
+
+    const instaShareBtn = document.getElementById('insta-share-btn');
+    if (instaShareBtn) instaShareBtn.onclick = () => ReferralSystem.claimInstagramReward();
+
+    const startLinkBtn = document.getElementById('start-link-btn');
+    if (startLinkBtn) startLinkBtn.onclick = () => AuthService.loginWithGoogle();
+
+    // Equipment Slots listeners (to show bag)
+    ['head', 'weapon', 'body'].forEach(slot => {
+        const el = document.getElementById(`equip-${slot}`);
+        if (el) el.onclick = () => switchTab('inventory');
     });
 
+    // Craft button
+    if (DOM.craftBtn) DOM.craftBtn.onclick = craftItem;
+
     // Upgrade buttons
-    DOM.hammerBtn.addEventListener('click', () => buyUpgrade('hammer'));
-    DOM.bellowsBtn.addEventListener('click', () => buyUpgrade('bellows'));
-    DOM.sharpenerBtn.addEventListener('click', () => buyUpgrade('sharpener'));
-    DOM.furnaceBtn.addEventListener('click', () => buyUpgrade('furnace'));
-    DOM.pickaxeBtn.addEventListener('click', () => buyUpgrade('pickaxe'));
+    addSafeListener(DOM.hammerBtn, 'click', () => buyUpgrade('hammer'));
+    addSafeListener(DOM.bellowsBtn, 'click', () => buyUpgrade('bellows'));
+    addSafeListener(DOM.sharpenerBtn, 'click', () => buyUpgrade('sharpener'));
+    addSafeListener(DOM.furnaceBtn, 'click', () => buyUpgrade('furnace'));
+    addSafeListener(DOM.pickaxeBtn, 'click', () => buyUpgrade('pickaxe'));
 
     // Mining Rock
-    DOM.miningRock.addEventListener('click', handleRockClick);
+    addSafeListener(DOM.miningRock, 'click', handleRockClick);
 
     // Luck Craft
-    DOM.luckCraftBtn.addEventListener('click', craftLuckSword);
+    addSafeListener(DOM.luckCraftBtn, 'click', craftLuckSword);
 
     // Prestige button
-    DOM.prestigeBtn.addEventListener('click', doPrestige);
+    addSafeListener(DOM.prestigeBtn, 'click', doPrestige);
 
     // Keyboard shortcut for clicking
     document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && !DOM.craftModal.classList.contains('hidden') === false) {
+        if (e.code === 'Space' && DOM.craftModal && !DOM.craftModal.classList.contains('hidden')) {
+            // Space pressed while modal open? maybe ignore or just handle
+        } else if (e.code === 'Space') {
             handleAnvilClick();
         }
     });
@@ -1435,43 +1898,44 @@ function setupEventListeners() {
 // =====================================================
 let playerName = null;
 
+// Helper to set player name from external scripts (like auth.js)
+window.setLocalPlayerName = function (name) {
+    playerName = name;
+};
+
+// Craft category selection
+let selectedCategory = 'weapon';
+const categoryBtns = document.querySelectorAll('.category-btn');
+categoryBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        categoryBtns.forEach(b => {
+            b.classList.remove('active');
+            b.style.border = '1px solid rgba(255,255,255,0.2)';
+            b.style.background = 'rgba(255,255,255,0.05)';
+        });
+        btn.classList.add('active');
+        btn.style.border = '1px solid #ffd700';
+        btn.style.background = 'rgba(255,215,0,0.1)';
+        selectedCategory = btn.dataset.category;
+    });
+});
+
 function showNameModal() {
-    const nameModal = document.getElementById('name-modal');
-    const nameInput = document.getElementById('player-name-input');
-    const startBtn = document.getElementById('start-game-btn');
-
-    // Check if player exists
-    const existingPlayer = LeaderboardSystem.getPlayer();
-    if (existingPlayer) {
-        playerName = existingPlayer.name;
-        nameModal.classList.add('hidden');
-        startGameSystems();
-        return;
+    console.log('showNameModal called');
+    // Use the new NameModalSystem
+    if (window.NameModalSystem) {
+        NameModalSystem.show();
+    } else {
+        console.error('NameModalSystem not loaded!');
+        // Fallback: try again after a short delay
+        setTimeout(() => {
+            if (window.NameModalSystem) {
+                NameModalSystem.show();
+            } else {
+                alert('⚠️ خطأ في تحميل النظام. يرجى تحديث الصفحة.');
+            }
+        }, 500);
     }
-
-    nameModal.classList.remove('hidden');
-
-    nameInput.addEventListener('input', () => {
-        const name = nameInput.value.trim();
-        startBtn.disabled = name.length < 2;
-    });
-
-    startBtn.addEventListener('click', () => {
-        const name = nameInput.value.trim();
-        if (name.length >= 2) {
-            nameInput.blur(); // Hide keyboard
-            playerName = name;
-            LeaderboardSystem.createPlayer(name);
-            nameModal.classList.add('hidden');
-            startGameSystems();
-        }
-    });
-
-    nameInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            startBtn.click();
-        }
-    });
 }
 
 function startGameSystems() {
@@ -1584,7 +2048,10 @@ async function updateLeaderboard() {
         playerName,
         score,
         gameState.stats.highestWave,
-        gameState.stats.totalSwords
+        gameState.stats.totalSwords,
+        gameState.equipment,
+        gameState.activeCharacter,
+        gameState.inventory
     );
     updateLeaderboardUI();
 }
@@ -1630,14 +2097,159 @@ async function updateLeaderboardUI() {
 
         const div = document.createElement('div');
         div.className = 'leaderboard-entry' + (isCurrentPlayer ? ' current-player' : '');
+        div.style.cursor = 'pointer';
         div.innerHTML = `
             <span class="entry-rank ${rankClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank}</span>
             <span class="entry-name">${entry.name}</span>
             <span class="entry-score">${formatNumber(entry.score)}</span>
             <span class="entry-wave">🌊 ${entry.wave}</span>
         `;
+
+        // Add click handler to show player profile
+        div.addEventListener('click', () => showPlayerProfile(entry));
+
         leaderboardList.appendChild(div);
     });
+}
+
+// Show player profile modal
+function showPlayerProfile(playerData) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('player-profile-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'player-profile-modal';
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+    }
+
+    const equipment = playerData.equipment || { head: null, body: null, weapon: null };
+    const character = Characters[playerData.activeCharacter] || Characters.default;
+    const inventory = playerData.inventory || [];
+
+    // Sort inventory by rarity and damage/hp
+    const sortedInventory = [...inventory].sort((a, b) => {
+        const rarityOrder = { mythic: 5, legendary: 4, epic: 3, rare: 2, common: 1 };
+        const rarityDiff = (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0);
+        if (rarityDiff !== 0) return rarityDiff;
+        return (b.damage || b.hp || 0) - (a.damage || a.hp || 0);
+    });
+
+    // Get top 5 items
+    const topItems = sortedInventory.slice(0, 5);
+
+    let equipmentHTML = '';
+    ['head', 'weapon', 'body'].forEach(slot => {
+        const item = equipment[slot];
+        const slotNames = { head: 'الرأس', weapon: 'السلاح', body: 'الجسم' };
+        if (item) {
+            const rarityConfig = RARITY[item.rarity];
+            const statsHTML = item.category === 'weapon'
+                ? `⚔️ ${item.damage} | ⚡ ${item.attackSpeed} | 💥 ${item.critChance}%`
+                : `❤️ ${item.hp} | 🛡️ ${item.defense}`;
+
+            equipmentHTML += `
+                <div class="profile-item" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid ${rarityConfig.color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.7rem; color: #aaa;">${slotNames[slot]}</div>
+                            <div style="color: ${rarityConfig.color}; font-weight: bold;">${item.icon || '⚔️'} ${item.name}</div>
+                            <div style="font-size: 0.8rem; color: #ccc;">${statsHTML}</div>
+                        </div>
+                        <div style="font-size: 0.7rem; color: ${rarityConfig.color};">${rarityConfig.name}</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            equipmentHTML += `
+                <div class="profile-item" style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 0.7rem; color: #666;">${slotNames[slot]}: فارغ</div>
+                </div>
+            `;
+        }
+    });
+
+    let inventoryHTML = '';
+    if (topItems.length > 0) {
+        topItems.forEach(item => {
+            const rarityConfig = RARITY[item.rarity];
+            const statsHTML = item.category === 'weapon'
+                ? `⚔️ ${item.damage}`
+                : `❤️ ${item.hp}`;
+
+            inventoryHTML += `
+                <div style="display: inline-block; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; margin: 4px; border: 1px solid ${rarityConfig.color};">
+                    <div style="font-size: 0.7rem; color: ${rarityConfig.color};">${item.icon || '⚔️'}</div>
+                    <div style="font-size: 0.65rem; color: #ccc;">${statsHTML}</div>
+                </div>
+            `;
+        });
+    } else {
+        inventoryHTML = '<div style="color: #666; font-size: 0.8rem;">لا توجد معدات</div>';
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>👤 ${playerData.name}</h3>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Character Info -->
+                <div style="background: rgba(255,215,0,0.1); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ffd700;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-size: 3rem;">${character.icon}</div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #ffd700;">${character.nameAr}</div>
+                            <div style="font-size: 0.8rem; color: #ccc; margin-top: 5px;">${character.desc}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #aaa;">النقاط</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #ffd700;">${formatNumber(playerData.score)}</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 0.7rem; color: #aaa;">الموجة</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #2ecc71;">🌊 ${playerData.wave}</div>
+                    </div>
+                </div>
+
+                <!-- Equipment -->
+                <div style="margin-bottom: 15px;">
+                    <h4 style="color: #ffd700; margin-bottom: 10px;">⚔️ المعدات المجهزة</h4>
+                    ${equipmentHTML}
+                </div>
+
+                <!-- Top Inventory Items -->
+                <div>
+                    <h4 style="color: #ffd700; margin-bottom: 10px;">🎒 أفضل المعدات (${inventory.length} قطعة)</h4>
+                    <div style="text-align: center;">
+                        ${inventoryHTML}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="close-profile-btn">إغلاق</button>
+            </div>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+
+    // Close button handler
+    document.getElementById('close-profile-btn').onclick = () => {
+        modal.classList.add('hidden');
+    };
+
+    // Click outside to close
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    };
 }
 
 // Track mission progress
@@ -1647,14 +2259,22 @@ function trackMissionProgress(type, amount = 1, absolute = false) {
 }
 
 function initGame() {
-    // Check for referral link in URL
-    ReferralSystem.checkReferralOnLoad();
+    initDOM();
+    // Check for referral
+    if (window.ReferralSystem) ReferralSystem.checkReferralOnLoad();
+    if (window.ArenaSystem) ArenaSystem.init();
+    if (window.AuthService) AuthService.init();
+    if (window.AdminSystem) AdminSystem.init();
+    if (window.LanguageSystem) LanguageSystem.init();
 
     // Load saved game
     loadGame();
 
     // Setup event listeners
     setupEventListeners();
+
+    // Final UI update
+    updateUI();
 
     // Spawn initial enemy
     if (!gameState.currentEnemy) {
@@ -1665,7 +2285,7 @@ function initGame() {
 
     // Update UI
     updateUI();
-    updateEquippedSwordUI();
+    updateEquippedUI();
     updateInventoryUI();
     updateCraftingUI();
 
@@ -1692,14 +2312,14 @@ defeatEnemy = function () {
     updateLeaderboard();
 };
 
-// Track swords crafted
-const originalCraftSword = craftSword;
-craftSword = function () {
+// Track items crafted
+const originalCraftItem = craftItem;
+craftItem = function () {
     const beforeCount = gameState.stats.totalSwords;
-    originalCraftSword();
+    originalCraftItem();
     if (gameState.stats.totalSwords > beforeCount) {
         trackMissionProgress('swords', 1);
-        // Check for rare sword
+        // Check for rare item
         if (gameState._tempSword && gameState._tempSword.rarity !== 'common') {
             trackMissionProgress('rare_sword', 1);
         }
@@ -1770,6 +2390,34 @@ function setupReferralUI() {
     }
 }
 
+// Global refining function
+window.refineMaterials = function () {
+    const totalMats = Object.values(gameState.materials).reduce((a, b) => a + b, 0);
+    if (totalMats < 100) {
+        alert("⚠️ تحتاج إلى 100 قطعة من المواد على الأقل للتكرير!");
+        return;
+    }
+
+    if (confirm(`هل تريد تكرير 100 قطعة من المواد عشوائياً مقابل 1 حجر أسطوري 💎؟`)) {
+        let count = 0;
+        const types = Object.keys(gameState.materials);
+        while (count < 100) {
+            const type = types[Math.floor(Math.random() * types.length)];
+            if (gameState.materials[type] > 0) {
+                gameState.materials[type]--;
+                count++;
+            }
+        }
+        gameState.gems += 1;
+        updateUI();
+        saveGame();
+        alert("💎 تم التكرير بنجاح! حصلت على 1 حجر أسطوري.");
+    }
+};
+
 // Start the game when DOM is ready
-document.addEventListener('DOMContentLoaded', initGame);
+document.addEventListener('DOMContentLoaded', () => {
+    initDOM();
+    initGame();
+});
 

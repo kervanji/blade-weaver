@@ -73,6 +73,7 @@ const ReferralSystem = {
             if (!snapshot.empty) {
                 let totalGold = 0;
                 let totalSpirits = 0;
+                let totalArenaCoins = 0;
                 let count = 0;
 
                 const batch = db.batch();
@@ -80,6 +81,7 @@ const ReferralSystem = {
                 snapshot.forEach(doc => {
                     totalGold += 1000;
                     totalSpirits += 5;
+                    totalArenaCoins += 20;
                     count++;
                     // تحديث الحالة إلى "تم الاستلام"
                     batch.update(doc.ref, { claimed: true });
@@ -91,38 +93,59 @@ const ReferralSystem = {
                 gameState.gold += totalGold;
                 gameState.stats.totalGold += totalGold;
                 gameState.swordSpirit += totalSpirits;
+                gameState.arenaCoins += totalArenaCoins;
 
                 // تحديث UI وحفظ
                 saveGame();
                 updateUI();
 
                 // رسالة نجاح
-                alert(`🎊 أخبار رائعة! انضم ${count} من أصدقائك بفضلك!\nحصلت على ${totalGold} ذهبة و ${totalSpirits} روح سيف!`);
+                alert(`🎊 أخبار رائعة! انضم ${count} من أصدقائك بفضلك!\nحصلت على ${totalGold} ذهبة و ${totalSpirits} روح سيف و ${totalArenaCoins} عملة ساحة!`);
             }
         } catch (error) {
             console.error("Error checking referral rewards:", error);
         }
     },
 
-    // مكافأة الانستغرام
+    // مكافأة الانستغرام والمشاركة
     claimInstagramReward: function () {
         const INSTA_KEY = 'bladeWeaver_insta_claimed';
-        if (localStorage.getItem(INSTA_KEY)) {
-            alert("⚠️ لقد حصلت على هذه المكافأة مسبقاً!");
-            return;
+
+        // جلب البيانات للمشاركة
+        const rank = gameState.arenaRankPoints || 0;
+        const power = gameState.stats.bestSwordDamage || 0;
+        const playerName = LeaderboardSystem.getPlayer()?.name || "بطل مجهول";
+
+        const message = `⚔️ أنا بطل في Blade Weaver!\n🏰 ترتيبي في الساحة: ${rank}\n🔥 أقوى ضربة لي: ${power}\n🛡️ هيا بنا نبني أقوى تحالف! انضم إليّ أو بارزني!\n\nلعب الآن: ${window.location.origin}`;
+
+        // محاولة استخدام Web Share API إذا كان متاحاً
+        if (navigator.share) {
+            navigator.share({
+                title: 'Blade Weaver',
+                text: message,
+                url: window.location.origin
+            }).then(() => {
+                this.giveInstaReward(INSTA_KEY);
+            }).catch(console.error);
+        } else {
+            // Fallback: Copy to clipboard and open Instagram
+            navigator.clipboard.writeText(message).then(() => {
+                alert("📋 تم نسخ رسالة التحدي! شاركها في الستوري الخاص بك واحصل على جائزتك.");
+                window.open('https://www.instagram.com/reels/create/', '_blank');
+                this.giveInstaReward(INSTA_KEY);
+            });
         }
+    },
 
-        // توجيه لإنستغرام (محاكاة المشاركة)
-        window.open('https://www.instagram.com/', '_blank');
-
-        // منح الجائزة
-        gameState.gold += 2000;
-        gameState.stats.totalGold += 2000;
-        localStorage.setItem(INSTA_KEY, 'true');
-
-        saveGame();
-        updateUI();
-        alert("📸 شكراً لمشاركة اللعبة! حصلت على 2000 ذهبة مكافأة! ✨");
+    giveInstaReward: function (key) {
+        if (!localStorage.getItem(key)) {
+            gameState.gold += 2000;
+            gameState.arenaCoins += 50;
+            localStorage.setItem(key, 'true');
+            saveGame();
+            updateUI();
+            alert("📸 شكراً للمشاركة! حصلت على 2000 ذهبة و 50 عملة ساحة! ✨");
+        }
     }
 };
 
