@@ -102,6 +102,27 @@ const ReferralSystem = {
         } catch (error) {
             console.error("Error checking referral rewards:", error);
         }
+    },
+
+    // مكافأة الانستغرام
+    claimInstagramReward: function () {
+        const INSTA_KEY = 'bladeWeaver_insta_claimed';
+        if (localStorage.getItem(INSTA_KEY)) {
+            alert("⚠️ لقد حصلت على هذه المكافأة مسبقاً!");
+            return;
+        }
+
+        // توجيه لإنستغرام (محاكاة المشاركة)
+        window.open('https://www.instagram.com/', '_blank');
+
+        // منح الجائزة
+        gameState.gold += 2000;
+        gameState.stats.totalGold += 2000;
+        localStorage.setItem(INSTA_KEY, 'true');
+
+        saveGame();
+        updateUI();
+        alert("📸 شكراً لمشاركة اللعبة! حصلت على 2000 ذهبة مكافأة! ✨");
     }
 };
 

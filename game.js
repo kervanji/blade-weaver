@@ -1749,6 +1749,13 @@ function setupReferralUI() {
             window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`);
         });
     }
+
+    const instaBtn = document.getElementById('share-insta');
+    if (instaBtn) {
+        instaBtn.addEventListener('click', () => {
+            ReferralSystem.claimInstagramReward();
+        });
+    }
 }
 
 // Start the game when DOM is ready

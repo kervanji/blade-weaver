@@ -1057,7 +1057,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 2000;
+    z-index: 9000;
     backdrop-filter: blur(5px);
 }
 
@@ -2039,7 +2039,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 2000;
+    z-index: 9000;
     padding: var(--spacing-md);
 }
 
@@ -2533,8 +2533,19 @@ body {
     background: #25d366;
 }
 
+.share-btn.instagram {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    color: white;
+}
+
+.share-btn.instagram:hover {
+    filter: brightness(1.2);
+    box-shadow: 0 0 15px rgba(220, 39, 67, 0.4);
+}
+
 .share-btn.telegram {
     background: #0088cc;
+    color: white;
 }
 
 .share-btn:hover {
