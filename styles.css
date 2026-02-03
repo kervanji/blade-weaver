@@ -2726,7 +2726,159 @@ body {
     font-size: 1.1rem;
 }
 
-.gems-indicator #chars-gem-count {
-    color: #38bdf8;
-    font-weight: bold;
+/* =====================================================
+   MOBILE UI ENHANCEMENTS (Max-width: 600px)
+   ===================================================== */
+@media (max-width: 600px) {
+    :root {
+        --spacing-md: 0.75rem;
+        --spacing-lg: 1rem;
+    }
+
+    body {
+        padding-bottom: 80px;
+        /* Space for fixed bottom nav */
+    }
+
+    .game-container {
+        padding: var(--spacing-xs);
+        max-width: 100%;
+        margin-top: 0;
+    }
+
+    /* Fixed Bottom Navigation */
+    .menu-tabs {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        background: rgba(26, 26, 26, 0.95);
+        backdrop-filter: blur(10px);
+        flex-direction: row;
+        width: 100%;
+        border-radius: 0;
+        border-top: 2px solid var(--color-gold-dark);
+        padding: 8px 4px;
+        z-index: 1000;
+        justify-content: space-around;
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .menu-tab {
+        flex-direction: column;
+        padding: 8px 4px;
+        flex: 1;
+        gap: 4px;
+        background: transparent;
+        border: none;
+        border-radius: 50px;
+    }
+
+    .menu-tab.active {
+        background: rgba(255, 215, 0, 0.1);
+        transform: scale(1.1);
+    }
+
+    .tab-icon {
+        font-size: 1.4rem;
+        margin: 0;
+    }
+
+    .tab-label {
+        font-size: 0.65rem;
+        font-weight: bold;
+        display: block;
+    }
+
+    /* Header Adjustments */
+    .game-header {
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-sm);
+    }
+
+    .header-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .stat-item {
+        margin: 0;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        justify-content: center;
+    }
+
+    /* Panel Content Adjustments */
+    .tab-panel {
+        padding: var(--spacing-sm);
+        border-radius: 12px;
+    }
+
+    .upgrades-grid,
+    .materials-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .characters-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    /* Combat Area */
+    .battle-area {
+        padding: var(--spacing-sm);
+    }
+
+    .enemy-visual {
+        width: 120px;
+        height: 120px;
+    }
+
+    .health-bar {
+        height: 20px;
+    }
+
+    /* Buttons Hit Areas */
+    .char-btn,
+    .buy-btn,
+    .upgrade-btn,
+    .craft-btn,
+    .sell-btn {
+        min-height: 44px;
+        /* Apple/Google recommended touch size */
+        font-size: 1rem;
+    }
+
+    /* Daily Missions */
+    .mission-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .mission-action {
+        width: 100%;
+    }
+
+    /* Floating Text Visibility */
+    .floating-text {
+        font-size: 1.2rem;
+    }
+}
+
+/* Landscape Mode Fix */
+@media (max-height: 500px) and (orientation: landscape) {
+    .menu-tabs {
+        display: none;
+        /* Hide bottom nav in low-height landscape to save space */
+    }
+
+    .game-container {
+        padding: 10px;
+    }
 }
