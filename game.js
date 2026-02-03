@@ -20,7 +20,8 @@ const gameState = {
         hammer: 1,      // Click power
         bellows: 0,     // Auto-click per second
         sharpener: 0,   // % damage bonus
-        furnace: 0      // % rare chance bonus
+        furnace: 0,     // % rare chance bonus
+        pickaxe: 1      // Mining power
     },
 
     // Materials
@@ -66,6 +67,14 @@ const RARITY = {
     epic: { name: 'ملحمي', nameEn: 'epic', color: '#a855f7', chance: 10, multiplier: 2.5 },
     legendary: { name: 'أسطوري', nameEn: 'legendary', color: '#f59e0b', chance: 4, multiplier: 4 },
     mythic: { name: 'خرافي', nameEn: 'mythic', color: '#ef4444', chance: 1, multiplier: 7 }
+};
+
+const LUCK_RARITY = {
+    common: { chance: 85 },
+    rare: { chance: 10 },
+    epic: { chance: 3.5 },
+    legendary: { chance: 1.2 },
+    mythic: { chance: 0.3 }
 };
 
 const MATERIALS = ['iron', 'steel', 'obsidian', 'dragonBone', 'starMetal'];
@@ -147,7 +156,8 @@ const UPGRADE_COSTS = {
     hammer: { base: 15, multiplier: 1.5 },
     bellows: { base: 50, multiplier: 2 },
     sharpener: { base: 100, multiplier: 1.8 },
-    furnace: { base: 200, multiplier: 2.2 }
+    furnace: { base: 200, multiplier: 2.2 },
+    pickaxe: { base: 75, multiplier: 1.6 }
 };
 
 // =====================================================
@@ -168,6 +178,13 @@ const DOM = {
     progressFill: document.getElementById('progress-fill'),
     progressPercent: document.getElementById('progress-percent'),
     craftBtn: document.getElementById('craft-btn'),
+    luckCraftBtn: document.getElementById('luck-craft-btn'),
+
+    // Mining
+    miningRock: document.getElementById('mining-rock'),
+    pickaxeAnim: document.getElementById('pickaxe-anim'),
+    miningFeedback: document.getElementById('mining-feedback'),
+    miningPowerDisplay: document.getElementById('mining-power-display'),
 
     // Equipped sword
     noSword: document.getElementById('no-sword'),
@@ -213,6 +230,9 @@ const DOM = {
     furnaceLevel: document.getElementById('furnace-level'),
     furnaceCost: document.getElementById('furnace-cost'),
     furnaceBtn: document.getElementById('furnace-btn'),
+    pickaxeLevel: document.getElementById('pickaxe-level'),
+    pickaxeCost: document.getElementById('pickaxe-cost'),
+    pickaxeBtn: document.getElementById('pickaxe-btn'),
 
     // Inventory
     inventoryGrid: document.getElementById('inventory-grid'),
@@ -454,6 +474,105 @@ function selectCraftTier(tier) {
     updateCraftingUI();
 }
 
+function craftLuckSword() {
+    const cost = 150;
+    if (gameState.smithingPoints < cost) return;
+
+    gameState.smithingPoints -= cost;
+
+    // Determine rarity using LUCK_RARITY tables (lower chance)
+    const rarity = determineRarity(true);
+    const rarityConfig = RARITY[rarity];
+
+    const spiritBonus = 1 + gameState.swordSpirit;
+    const sharpenerBonus = 1 + (gameState.upgrades.sharpener * 0.1);
+
+    const baseDamage = random(3, 12) * rarityConfig.multiplier * spiritBonus * sharpenerBonus;
+    const baseSpeed = randomFloat(0.7, 1.3);
+    const baseCrit = random(2, 10) + (rarity === 'mythic' ? 15 : rarity === 'legendary' ? 8 : 0);
+
+    const sword = {
+        id: Date.now(),
+        name: generateSwordName(rarity, 'basic') + ' (حظ)',
+        rarity: rarity,
+        tier: 'basic',
+        damage: Math.floor(baseDamage),
+        attackSpeed: parseFloat(baseSpeed.toFixed(2)),
+        critChance: Math.min(baseCrit, 75),
+        sellValue: Math.floor(baseDamage * 1.5)
+    };
+
+    gameState.stats.totalSwords++;
+    showNewSwordModal(sword);
+    updateUI();
+    saveGame();
+}
+
+function determineRarity(isLuckCraft = false) {
+    const table = isLuckCraft ? LUCK_RARITY : RARITY;
+    const furnaceBonus = isLuckCraft ? 0 : (gameState.upgrades.furnace * 5);
+    let roll = Math.random() * 100;
+
+    roll = Math.max(0, roll - furnaceBonus);
+
+    let cumulative = 0;
+    for (const [key, config] of Object.entries(table)) {
+        cumulative += config.chance;
+        if (roll < cumulative) return key;
+    }
+    return 'common';
+}
+
+// =====================================================
+// MINING SYSTEM
+// =====================================================
+function handleRockClick() {
+    const miningPower = gameState.upgrades.pickaxe;
+    const spiritBonus = 1 + gameState.swordSpirit;
+    const pointsGained = Math.floor(miningPower * 2 * spiritBonus);
+
+    gameState.smithingPoints += pointsGained;
+
+    // Small chance for materials
+    let droppedMat = null;
+    if (Math.random() < 0.1 + (miningPower * 0.01)) {
+        const matIndex = Math.min(Math.floor(gameState.wave / 15), MATERIALS.length - 1);
+        const type = MATERIALS[random(0, matIndex)];
+        const amount = 1;
+        gameState.materials[type] += amount;
+        droppedMat = { type, amount };
+    }
+
+    // Visuals
+    showMiningFeedback(pointsGained, droppedMat);
+    animateMining();
+    updateUI();
+}
+
+function animateMining() {
+    DOM.miningRock.classList.remove('shake');
+    DOM.pickaxeAnim.classList.remove('swing');
+    void DOM.miningRock.offsetWidth;
+    DOM.miningRock.classList.add('shake');
+    DOM.pickaxeAnim.classList.add('swing');
+}
+
+function showMiningFeedback(points, material) {
+    const feedback = document.createElement('div');
+    feedback.className = 'click-feedback show';
+    feedback.style.left = (50 + random(-20, 20)) + '%';
+    feedback.style.top = (50 + random(-20, 20)) + '%';
+
+    let text = `+${points}`;
+    if (material) {
+        text += `\n✨${MATERIAL_NAMES[material.type]}`;
+    }
+    feedback.innerText = text;
+
+    DOM.miningFeedback.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 800);
+}
+
 function showNewSwordModal(sword) {
     const rarityConfig = RARITY[sword.rarity];
 
@@ -512,14 +631,20 @@ function spawnEnemy() {
 }
 
 function attackEnemy() {
-    if (!gameState.currentEnemy || !gameState.equippedSword) return;
+    if (!gameState.currentEnemy) return;
 
-    const sword = gameState.equippedSword;
-    let damage = sword.damage;
+    // Default stats if no sword is equipped
+    let damage = 1;
+    let critChance = 5;
     let isCrit = false;
 
+    if (gameState.equippedSword) {
+        damage = gameState.equippedSword.damage;
+        critChance = gameState.equippedSword.critChance;
+    }
+
     // Critical hit check
-    if (Math.random() * 100 < sword.critChance) {
+    if (Math.random() * 100 < critChance) {
         damage = Math.floor(damage * 2);
         isCrit = true;
     }
@@ -672,7 +797,11 @@ function doPrestige() {
     gameState.smithingPoints = 0;
     gameState.clickPower = 1;
     gameState.autoClickPower = 0;
-    gameState.upgrades = { hammer: 1, bellows: 0, sharpener: 0, furnace: 0 };
+    gameState.gold = 0;
+    gameState.smithingPoints = 0;
+    gameState.clickPower = 1;
+    gameState.autoClickPower = 0;
+    gameState.upgrades = { hammer: 1, bellows: 0, sharpener: 0, furnace: 0, pickaxe: 1 };
     gameState.materials = { iron: 0, steel: 0, obsidian: 0, dragonBone: 0, starMetal: 0 };
     gameState.inventory = [];
     gameState.equippedSword = null;
@@ -741,6 +870,16 @@ function updateUI() {
     // Prestige
     DOM.currentSpirits.textContent = gameState.swordSpirit;
     updatePrestigeAvailability();
+
+    // Mining
+    if (DOM.miningPowerDisplay) {
+        DOM.miningPowerDisplay.textContent = gameState.upgrades.pickaxe;
+    }
+
+    // Luck Craft Button
+    if (DOM.luckCraftBtn) {
+        DOM.luckCraftBtn.disabled = gameState.smithingPoints < 150;
+    }
 }
 
 function updateUpgradeUI() {
@@ -755,6 +894,14 @@ function updateUpgradeUI() {
         DOM[type + 'Cost'].textContent = formatNumber(cost);
         DOM[type + 'Btn'].disabled = !canAfford;
     });
+
+    // Pickaxe upgrade special case as it's added later
+    if (DOM.pickaxeBtn) {
+        const cost = getUpgradeCost('pickaxe');
+        DOM.pickaxeLevel.textContent = gameState.upgrades.pickaxe;
+        DOM.pickaxeCost.textContent = formatNumber(cost);
+        DOM.pickaxeBtn.disabled = gameState.gold < cost;
+    }
 }
 
 function updateEquippedSwordUI() {
@@ -919,8 +1066,11 @@ function loadGame() {
         Object.assign(gameState, data);
 
         // Recalculate derived values
-        gameState.clickPower = gameState.upgrades.hammer;
-        gameState.autoClickPower = gameState.upgrades.bellows;
+        gameState.clickPower = gameState.upgrades.hammer || 1;
+        gameState.autoClickPower = gameState.upgrades.bellows || 0;
+
+        // Ensure new fields exist
+        if (gameState.upgrades.pickaxe === undefined) gameState.upgrades.pickaxe = 1;
     }
 }
 
@@ -932,7 +1082,7 @@ let autoClickInterval = null;
 
 function startCombatLoop() {
     combatInterval = setInterval(() => {
-        if (gameState.equippedSword && gameState.currentEnemy) {
+        if (gameState.currentEnemy) {
             attackEnemy();
         }
     }, 1000);
@@ -995,6 +1145,13 @@ function setupEventListeners() {
     DOM.bellowsBtn.addEventListener('click', () => buyUpgrade('bellows'));
     DOM.sharpenerBtn.addEventListener('click', () => buyUpgrade('sharpener'));
     DOM.furnaceBtn.addEventListener('click', () => buyUpgrade('furnace'));
+    DOM.pickaxeBtn.addEventListener('click', () => buyUpgrade('pickaxe'));
+
+    // Mining Rock
+    DOM.miningRock.addEventListener('click', handleRockClick);
+
+    // Luck Craft
+    DOM.luckCraftBtn.addEventListener('click', craftLuckSword);
 
     // Prestige button
     DOM.prestigeBtn.addEventListener('click', doPrestige);

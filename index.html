@@ -98,10 +98,17 @@
                     </div>
                 </div>
 
-                <button class="craft-btn" id="craft-btn" disabled>
+                <button class="craft-btn" id="craft-btn" disabled title="يتطلب مواد ونقاط حدادة">
                     <span class="btn-icon">⚔️</span>
-                    <span class="btn-text">اصنع سيفاً</span>
+                    <span class="btn-text">صناعة بمواد</span>
                     <span class="btn-cost">100 نقطة</span>
+                </button>
+
+                <button class="craft-btn luck-btn" id="luck-craft-btn" disabled
+                    title="لا يتطلب مواد، فرصة أقل للسيوف القوية">
+                    <span class="btn-icon">🎲</span>
+                    <span class="btn-text">حدادة الحظ</span>
+                    <span class="btn-cost">150 نقطة</span>
                 </button>
 
                 <!-- Equipped Sword Display -->
@@ -206,6 +213,10 @@
                 <span class="tab-icon">🌟</span>
                 <span class="tab-label">الصعود</span>
             </button>
+            <button class="menu-tab" data-tab="mining">
+                <span class="tab-icon">⛏️</span>
+                <span class="tab-label">المناجم</span>
+            </button>
         </nav>
 
         <!-- Tab Panels -->
@@ -238,164 +249,198 @@
                         </button>
                     </div>
 
-                    <div class="upgrade-card" id="sharpener-upgrade">
-                        <div class="upgrade-icon">🪨</div>
+                    <div class="upgrade-card" id="pickaxe-upgrade">
+                        <div class="upgrade-icon">⛏️</div>
                         <div class="upgrade-info">
-                            <div class="upgrade-name">المسن</div>
-                            <div class="upgrade-desc">+10% ضرر السيوف</div>
-                            <div class="upgrade-level">المستوى: <span id="sharpener-level">0</span></div>
+                            <div class="upgrade-name">المعول</div>
+                            <div class="upgrade-desc">+1 قوة التعدين</div>
+                            <div class="upgrade-level">المستوى: <span id="pickaxe-level">1</span></div>
                         </div>
-                        <button class="upgrade-btn" id="sharpener-btn">
-                            <span class="upgrade-cost" id="sharpener-cost">100</span> 🪙
-                        </button>
-                    </div>
-
-                    <div class="upgrade-card" id="furnace-upgrade">
-                        <div class="upgrade-icon">🔥</div>
-                        <div class="upgrade-info">
-                            <div class="upgrade-name">الفرن</div>
-                            <div class="upgrade-desc">+5% فرصة سيف نادر</div>
-                            <div class="upgrade-level">المستوى: <span id="furnace-level">0</span></div>
-                        </div>
-                        <button class="upgrade-btn" id="furnace-btn">
-                            <span class="upgrade-cost" id="furnace-cost">200</span> 🪙
+                        <button class="upgrade-btn" id="pickaxe-btn">
+                            <span class="upgrade-cost" id="pickaxe-cost">75</span> 🪙
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Inventory Panel -->
-            <div class="tab-panel" id="inventory-panel">
-                <h3>حقيبة السيوف</h3>
-                <div class="inventory-grid" id="inventory-grid">
-                    <!-- Sword cards will be generated here -->
-                    <div class="empty-inventory">لا توجد سيوف - اصنع سيفك الأول!</div>
+                <div class="upgrade-card" id="sharpener-upgrade">
+                    <div class="upgrade-icon">🪨</div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">المسن</div>
+                        <div class="upgrade-desc">+10% ضرر السيوف</div>
+                        <div class="upgrade-level">المستوى: <span id="sharpener-level">0</span></div>
+                    </div>
+                    <button class="upgrade-btn" id="sharpener-btn">
+                        <span class="upgrade-cost" id="sharpener-cost">100</span> 🪙
+                    </button>
                 </div>
-            </div>
 
-            <!-- Skills Panel -->
-            <div class="tab-panel" id="skills-panel">
-                <h3>مهارات السياف</h3>
-                <div class="skills-grid">
-                    <div class="skill-card locked" id="skill-fury">
-                        <div class="skill-icon">💢</div>
-                        <div class="skill-info">
-                            <div class="skill-name">غضب الحداد</div>
-                            <div class="skill-desc">ضرر مضاعف لـ 10 ثواني</div>
-                        </div>
-                        <div class="skill-unlock">يتطلب الموجة 10</div>
+                <div class="upgrade-card" id="furnace-upgrade">
+                    <div class="upgrade-icon">🔥</div>
+                    <div class="upgrade-info">
+                        <div class="upgrade-name">الفرن</div>
+                        <div class="upgrade-desc">+5% فرصة سيف نادر</div>
+                        <div class="upgrade-level">المستوى: <span id="furnace-level">0</span></div>
                     </div>
-                    <div class="skill-card locked" id="skill-swift">
-                        <div class="skill-icon">⚡</div>
-                        <div class="skill-info">
-                            <div class="skill-name">ضربة سريعة</div>
-                            <div class="skill-desc">سرعة هجوم مضاعفة</div>
-                        </div>
-                        <div class="skill-unlock">يتطلب الموجة 25</div>
-                    </div>
-                    <div class="skill-card locked" id="skill-golden">
-                        <div class="skill-icon">💰</div>
-                        <div class="skill-info">
-                            <div class="skill-name">لمسة ذهبية</div>
-                            <div class="skill-desc">ذهب إضافي من الأعداء</div>
-                        </div>
-                        <div class="skill-unlock">يتطلب الموجة 40</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stats Panel -->
-            <div class="tab-panel" id="stats-panel">
-                <h3>إحصائيات اللاعب</h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">إجمالي النقرات</div>
-                        <div class="stat-value" id="total-clicks">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">سيوف مصنوعة</div>
-                        <div class="stat-value" id="total-swords">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">أعداء مهزومين</div>
-                        <div class="stat-value" id="total-enemies">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">أعلى موجة</div>
-                        <div class="stat-value" id="highest-wave">1</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">ذهب مجموع</div>
-                        <div class="stat-value" id="total-gold">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">أفضل سيف</div>
-                        <div class="stat-value" id="best-sword">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Prestige Panel -->
-            <div class="tab-panel" id="prestige-panel">
-                <h3>الصعود الأسطوري</h3>
-                <div class="prestige-content">
-                    <div class="prestige-info">
-                        <div class="prestige-icon">🌟</div>
-                        <p>صهر جميع سيوفك للحصول على <strong>روح السيف</strong></p>
-                        <p class="prestige-bonus">كل روح = +100% ضرر أساسي دائم</p>
-                    </div>
-                    <div class="prestige-preview">
-                        <div class="current-spirits">
-                            <span class="label">أرواح حالية</span>
-                            <span class="value" id="current-spirits">0</span>
-                        </div>
-                        <div class="prestige-arrow">→</div>
-                        <div class="gained-spirits">
-                            <span class="label">أرواح ستكتسبها</span>
-                            <span class="value" id="gained-spirits">0</span>
-                        </div>
-                    </div>
-                    <button class="prestige-btn" id="prestige-btn" disabled>
-                        <span>🔥 الصعود 🔥</span>
-                        <small>يتطلب الموجة 50</small>
+                    <button class="upgrade-btn" id="furnace-btn">
+                        <span class="upgrade-cost" id="furnace-cost">200</span> 🪙
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Crafting Modal -->
-        <div class="modal hidden" id="craft-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>سيف جديد!</h3>
-                </div>
-                <div class="modal-body">
-                    <div class="new-sword" id="new-sword">
-                        <div class="sword-rarity" id="modal-rarity">عادي</div>
-                        <div class="sword-icon">🗡️</div>
-                        <div class="sword-name" id="modal-sword-name">سيف حديدي</div>
-                        <div class="sword-stats-modal">
-                            <div class="stat-row">
-                                <span class="stat-label">⚔️ الضرر</span>
-                                <span class="stat-value" id="modal-damage">10</span>
-                            </div>
-                            <div class="stat-row">
-                                <span class="stat-label">⚡ السرعة</span>
-                                <span class="stat-value" id="modal-speed">1.0</span>
-                            </div>
-                            <div class="stat-row">
-                                <span class="stat-label">💥 الحرجة</span>
-                                <span class="stat-value" id="modal-crit">5%</span>
-                            </div>
-                        </div>
+        <!-- Inventory Panel -->
+        <div class="tab-panel" id="inventory-panel">
+            <h3>حقيبة السيوف</h3>
+            <div class="inventory-grid" id="inventory-grid">
+                <!-- Sword cards will be generated here -->
+                <div class="empty-inventory">لا توجد سيوف - اصنع سيفك الأول!</div>
+            </div>
+        </div>
+
+        <!-- Skills Panel -->
+        <div class="tab-panel" id="skills-panel">
+            <h3>مهارات السياف</h3>
+            <div class="skills-grid">
+                <div class="skill-card locked" id="skill-fury">
+                    <div class="skill-icon">💢</div>
+                    <div class="skill-info">
+                        <div class="skill-name">غضب الحداد</div>
+                        <div class="skill-desc">ضرر مضاعف لـ 10 ثواني</div>
                     </div>
+                    <div class="skill-unlock">يتطلب الموجة 10</div>
                 </div>
-                <div class="modal-actions">
-                    <button class="modal-btn equip-btn" id="equip-new-btn">تجهيز</button>
-                    <button class="modal-btn keep-btn" id="keep-btn">احفظ في الحقيبة</button>
+                <div class="skill-card locked" id="skill-swift">
+                    <div class="skill-icon">⚡</div>
+                    <div class="skill-info">
+                        <div class="skill-name">ضربة سريعة</div>
+                        <div class="skill-desc">سرعة هجوم مضاعفة</div>
+                    </div>
+                    <div class="skill-unlock">يتطلب الموجة 25</div>
+                </div>
+                <div class="skill-card locked" id="skill-golden">
+                    <div class="skill-icon">💰</div>
+                    <div class="skill-info">
+                        <div class="skill-name">لمسة ذهبية</div>
+                        <div class="skill-desc">ذهب إضافي من الأعداء</div>
+                    </div>
+                    <div class="skill-unlock">يتطلب الموجة 40</div>
                 </div>
             </div>
         </div>
+
+        <!-- Stats Panel -->
+        <div class="tab-panel" id="stats-panel">
+            <h3>إحصائيات اللاعب</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">إجمالي النقرات</div>
+                    <div class="stat-value" id="total-clicks">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">سيوف مصنوعة</div>
+                    <div class="stat-value" id="total-swords">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">أعداء مهزومين</div>
+                    <div class="stat-value" id="total-enemies">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">أعلى موجة</div>
+                    <div class="stat-value" id="highest-wave">1</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">ذهب مجموع</div>
+                    <div class="stat-value" id="total-gold">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">أفضل سيف</div>
+                    <div class="stat-value" id="best-sword">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prestige Panel -->
+        <div class="tab-panel" id="prestige-panel">
+            <h3>الصعود الأسطوري</h3>
+            <div class="prestige-content">
+                <div class="prestige-info">
+                    <div class="prestige-icon">🌟</div>
+                    <p>صهر جميع سيوفك للحصول على <strong>روح السيف</strong></p>
+                    <p class="prestige-bonus">كل روح = +100% ضرر أساسي دائم</p>
+                </div>
+                <div class="prestige-preview">
+                    <div class="current-spirits">
+                        <span class="label">أرواح حالية</span>
+                        <span class="value" id="current-spirits">0</span>
+                    </div>
+                    <div class="prestige-arrow">→</div>
+                    <div class="gained-spirits">
+                        <span class="label">أرواح ستكتسبها</span>
+                        <span class="value" id="gained-spirits">0</span>
+                    </div>
+                </div>
+                <button class="prestige-btn" id="prestige-btn" disabled>
+                    <span>🔥 الصعود 🔥</span>
+                    <small>يتطلب الموجة 50</small>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mining Panel -->
+        <div class="tab-panel" id="mining-panel">
+            <h3>منجم الموارد</h3>
+            <div class="mining-container">
+                <div class="rock-container">
+                    <div class="rock" id="mining-rock">
+                        <span class="rock-emoji">🪨</span>
+                        <div class="pickaxe-animation" id="pickaxe-anim">⛏️</div>
+                    </div>
+                    <div class="mining-feedback" id="mining-feedback"></div>
+                </div>
+                <div class="mining-stats-panel">
+                    <div class="mining-stat">
+                        <span class="label">قوة التعدين</span>
+                        <span class="value" id="mining-power-display">1</span>
+                    </div>
+                    <p class="mining-desc">انقر على الصخرة لاستخراج النقاط والمواد النادرة!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crafting Modal -->
+    <div class="modal hidden" id="craft-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>سيف جديد!</h3>
+            </div>
+            <div class="modal-body">
+                <div class="new-sword" id="new-sword">
+                    <div class="sword-rarity" id="modal-rarity">عادي</div>
+                    <div class="sword-icon">🗡️</div>
+                    <div class="sword-name" id="modal-sword-name">سيف حديدي</div>
+                    <div class="sword-stats-modal">
+                        <div class="stat-row">
+                            <span class="stat-label">⚔️ الضرر</span>
+                            <span class="stat-value" id="modal-damage">10</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">⚡ السرعة</span>
+                            <span class="stat-value" id="modal-speed">1.0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">💥 الحرجة</span>
+                            <span class="stat-value" id="modal-crit">5%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn equip-btn" id="equip-new-btn">تجهيز</button>
+                <button class="modal-btn keep-btn" id="keep-btn">احفظ في الحقيبة</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script src="game.js"></script>

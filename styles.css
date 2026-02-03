@@ -406,6 +406,21 @@ body {
     opacity: 0.8;
 }
 
+.luck-btn {
+    background: linear-gradient(135deg, #4a00e0, #8e2de2);
+    color: white;
+    margin-top: var(--spacing-sm);
+    box-shadow: 0 0 15px rgba(138, 45, 226, 0.3);
+}
+
+.luck-btn:hover:not(:disabled) {
+    box-shadow: 0 0 25px rgba(138, 45, 226, 0.5);
+}
+
+.luck-btn .btn-cost {
+    color: #e0e0e0;
+}
+
 /* Equipped Sword */
 .equipped-sword {
     margin-top: auto;
@@ -1213,32 +1228,159 @@ body {
     }
 }
 
-@keyframes hammer-down {
+/* Mining Panel */
+.mining-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-xl);
+}
+
+.rock-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rock {
+    font-size: 8rem;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+    user-select: none;
+    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.5));
+    position: relative;
+    z-index: 2;
+}
+
+.rock:hover {
+    transform: scale(1.05);
+}
+
+.rock.shake {
+    animation: rock-shake 0.2s ease-in-out;
+}
+
+.pickaxe-animation {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    font-size: 3rem;
+    opacity: 0;
+    pointer-events: none;
+    transform-origin: bottom left;
+    z-index: 3;
+}
+
+.pickaxe-animation.swing {
+    animation: pickaxe-swing 0.3s ease-out;
+}
+
+.mining-feedback {
+    position: absolute;
+    pointer-events: none;
+    width: 100%;
+    height: 100%;
+}
+
+.mining-stats-panel {
+    text-align: center;
+    background: rgba(0, 0, 0, 0.3);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.mining-stat {
+    margin-bottom: var(--spacing-xs);
+}
+
+.mining-stat .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-left: var(--spacing-sm);
+}
+
+.mining-stat .value {
+    color: var(--color-gold);
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+}
+
+.mining-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Animations */
+@keyframes rock-shake {
     0% {
-        transform: translateX(-50%) rotate(-45deg) translateY(-20px);
-        opacity: 1;
+        transform: scale(1.05) rotate(0);
     }
 
-    50% {
-        transform: translateX(-50%) rotate(-45deg) translateY(10px);
-        opacity: 1;
+    25% {
+        transform: scale(1.05) rotate(-5deg);
+    }
+
+    75% {
+        transform: scale(1.05) rotate(5deg);
     }
 
     100% {
-        transform: translateX(-50%) rotate(-45deg) translateY(-20px);
+        transform: scale(1.05) rotate(0);
+    }
+}
+
+@keyframes pickaxe-swing {
+    0% {
         opacity: 0;
+        transform: rotate(45deg);
+    }
+
+    50% {
+        opacity: 1;
+        transform: rotate(-10deg);
+    }
+
+    100% {
+        opacity: 0;
+        transform: rotate(-20deg);
+    }
+}
+
+@keyframes hammer-down {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) rotate(-45deg) translateY(-20px);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateX(-50%) rotate(-10deg) translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) rotate(0deg) translateY(10px);
     }
 }
 
 @keyframes float-up {
     0% {
+        opacity: 0;
         transform: translate(-50%, -50%);
+    }
+
+    50% {
         opacity: 1;
     }
 
     100% {
-        transform: translate(-50%, -150%);
         opacity: 0;
+        transform: translate(-50%, -150%);
     }
 }
 
@@ -1272,37 +1414,35 @@ body {
     }
 
     50% {
-        transform: translateY(-5px);
+        transform: translateY(-10px);
     }
 }
 
 @keyframes damage-pop {
     0% {
-        transform: translate(-50%, 0) scale(0.5);
         opacity: 0;
+        transform: translateY(0) scale(0.5);
     }
 
-    20% {
-        transform: translate(-50%, -20px) scale(1.2);
+    50% {
         opacity: 1;
+        transform: translateY(-30px) scale(1.2);
     }
 
     100% {
-        transform: translate(-50%, -60px) scale(1);
         opacity: 0;
+        transform: translateY(-50px) scale(1);
     }
 }
 
 @keyframes loot-pop {
     0% {
-        transform: scale(0);
-    }
-
-    50% {
-        transform: scale(1.2);
+        opacity: 0;
+        transform: scale(0.5);
     }
 
     100% {
+        opacity: 1;
         transform: scale(1);
     }
 }
@@ -1366,7 +1506,7 @@ body {
     }
 
     50% {
-        transform: translateX(30px);
+        transform: translateX(-30px);
     }
 
     100% {
