@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Blade Weaver: The Eternal Smith</title>
     <meta name="description" content="لعبة الحداد الأسطوري - اصنع السيوف وخض المعارك واجمع الغنائم">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,6 +45,10 @@
                 <div class="stat spirit-stat">
                     <span class="stat-icon">✨</span>
                     <span class="stat-value" id="spirit-display">0</span>
+                </div>
+                <div class="stat gem-stat">
+                    <span class="stat-icon">💎</span>
+                    <span class="stat-value" id="gem-display">0</span>
                 </div>
             </div>
         </header>
@@ -201,9 +205,13 @@
                 <span class="tab-icon">🎒</span>
                 <span class="tab-label">الحقيبة</span>
             </button>
-            <button class="menu-tab" data-tab="skills">
-                <span class="tab-icon">📜</span>
-                <span class="tab-label">المهارات</span>
+            <button class="menu-tab" data-tab="missions">
+                <span class="tab-icon">📋</span>
+                <span class="tab-label">المهام</span>
+            </button>
+            <button class="menu-tab" data-tab="leaderboard">
+                <span class="tab-icon">🏆</span>
+                <span class="tab-label">الصدارة</span>
             </button>
             <button class="menu-tab" data-tab="stats">
                 <span class="tab-icon">📊</span>
@@ -213,9 +221,17 @@
                 <span class="tab-icon">🌟</span>
                 <span class="tab-label">الصعود</span>
             </button>
+            <button class="menu-tab" data-tab="characters">
+                <span class="tab-icon">🎭</span>
+                <span class="tab-label">الأبطال</span>
+            </button>
             <button class="menu-tab" data-tab="mining">
                 <span class="tab-icon">⛏️</span>
                 <span class="tab-label">المناجم</span>
+            </button>
+            <button class="menu-tab" data-tab="referrals">
+                <span class="tab-icon">👥</span>
+                <span class="tab-label">الأصدقاء</span>
             </button>
         </nav>
 
@@ -286,123 +302,169 @@
                     </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Inventory Panel -->
-        <div class="tab-panel" id="inventory-panel">
-            <h3>حقيبة السيوف</h3>
-            <div class="inventory-grid" id="inventory-grid">
-                <!-- Sword cards will be generated here -->
-                <div class="empty-inventory">لا توجد سيوف - اصنع سيفك الأول!</div>
-            </div>
-        </div>
-
-        <!-- Skills Panel -->
-        <div class="tab-panel" id="skills-panel">
-            <h3>مهارات السياف</h3>
-            <div class="skills-grid">
-                <div class="skill-card locked" id="skill-fury">
-                    <div class="skill-icon">💢</div>
-                    <div class="skill-info">
-                        <div class="skill-name">غضب الحداد</div>
-                        <div class="skill-desc">ضرر مضاعف لـ 10 ثواني</div>
-                    </div>
-                    <div class="skill-unlock">يتطلب الموجة 10</div>
-                </div>
-                <div class="skill-card locked" id="skill-swift">
-                    <div class="skill-icon">⚡</div>
-                    <div class="skill-info">
-                        <div class="skill-name">ضربة سريعة</div>
-                        <div class="skill-desc">سرعة هجوم مضاعفة</div>
-                    </div>
-                    <div class="skill-unlock">يتطلب الموجة 25</div>
-                </div>
-                <div class="skill-card locked" id="skill-golden">
-                    <div class="skill-icon">💰</div>
-                    <div class="skill-info">
-                        <div class="skill-name">لمسة ذهبية</div>
-                        <div class="skill-desc">ذهب إضافي من الأعداء</div>
-                    </div>
-                    <div class="skill-unlock">يتطلب الموجة 40</div>
+            <!-- Inventory Panel -->
+            <div class="tab-panel" id="inventory-panel">
+                <h3>حقيبة السيوف</h3>
+                <div class="inventory-grid" id="inventory-grid">
+                    <div class="empty-inventory">لا توجد سيوف - اصنع سيفك الأول!</div>
                 </div>
             </div>
-        </div>
 
-        <!-- Stats Panel -->
-        <div class="tab-panel" id="stats-panel">
-            <h3>إحصائيات اللاعب</h3>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">إجمالي النقرات</div>
-                    <div class="stat-value" id="total-clicks">0</div>
+            <!-- Missions Panel -->
+            <div class="tab-panel" id="missions-panel">
+                <h3>📋 المهام اليومية</h3>
+                <div class="missions-info">
+                    <span class="missions-refresh">🔄 تتجدد يومياً</span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">سيوف مصنوعة</div>
-                    <div class="stat-value" id="total-swords">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">أعداء مهزومين</div>
-                    <div class="stat-value" id="total-enemies">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">أعلى موجة</div>
-                    <div class="stat-value" id="highest-wave">1</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">ذهب مجموع</div>
-                    <div class="stat-value" id="total-gold">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">أفضل سيف</div>
-                    <div class="stat-value" id="best-sword">-</div>
+                <div class="missions-grid" id="missions-grid">
+                    <!-- Missions will be generated by JS -->
                 </div>
             </div>
-        </div>
 
-        <!-- Prestige Panel -->
-        <div class="tab-panel" id="prestige-panel">
-            <h3>الصعود الأسطوري</h3>
-            <div class="prestige-content">
-                <div class="prestige-info">
-                    <div class="prestige-icon">🌟</div>
-                    <p>صهر جميع سيوفك للحصول على <strong>روح السيف</strong></p>
-                    <p class="prestige-bonus">كل روح = +100% ضرر أساسي دائم</p>
-                </div>
-                <div class="prestige-preview">
-                    <div class="current-spirits">
-                        <span class="label">أرواح حالية</span>
-                        <span class="value" id="current-spirits">0</span>
-                    </div>
-                    <div class="prestige-arrow">→</div>
-                    <div class="gained-spirits">
-                        <span class="label">أرواح ستكتسبها</span>
-                        <span class="value" id="gained-spirits">0</span>
+            <!-- Leaderboard Panel -->
+            <div class="tab-panel" id="leaderboard-panel">
+                <h3>🏆 لوحة الصدارة</h3>
+                <div class="leaderboard-header">
+                    <div class="player-score-card" id="player-score-card">
+                        <span class="player-name" id="leaderboard-player-name">-</span>
+                        <span class="player-score">النقاط: <span id="leaderboard-player-score">0</span></span>
+                        <span class="player-rank">الترتيب: <span id="leaderboard-player-rank">-</span></span>
                     </div>
                 </div>
-                <button class="prestige-btn" id="prestige-btn" disabled>
-                    <span>🔥 الصعود 🔥</span>
-                    <small>يتطلب الموجة 50</small>
-                </button>
+                <div class="leaderboard-list" id="leaderboard-list">
+                    <!-- Leaderboard entries will be generated by JS -->
+                </div>
             </div>
-        </div>
 
-        <!-- Mining Panel -->
-        <div class="tab-panel" id="mining-panel">
-            <h3>منجم الموارد</h3>
-            <div class="mining-container">
-                <div class="rock-container">
-                    <div class="rock" id="mining-rock">
-                        <span class="rock-emoji">🪨</span>
-                        <div class="pickaxe-animation" id="pickaxe-anim">⛏️</div>
+            <!-- Stats Panel -->
+            <div class="tab-panel" id="stats-panel">
+                <h3>إحصائيات اللاعب</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">إجمالي النقرات</div>
+                        <div class="stat-value" id="total-clicks">0</div>
                     </div>
-                    <div class="mining-feedback" id="mining-feedback"></div>
+                    <div class="stat-card">
+                        <div class="stat-label">سيوف مصنوعة</div>
+                        <div class="stat-value" id="total-swords">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">أعداء مهزومين</div>
+                        <div class="stat-value" id="total-enemies">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">أعلى موجة</div>
+                        <div class="stat-value" id="highest-wave">1</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">ذهب مجموع</div>
+                        <div class="stat-value" id="total-gold">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">أفضل سيف</div>
+                        <div class="stat-value" id="best-sword">-</div>
+                    </div>
                 </div>
-                <div class="mining-stats-panel">
-                    <div class="mining-stat">
-                        <span class="label">قوة التعدين</span>
-                        <span class="value" id="mining-power-display">1</span>
+            </div>
+
+            <!-- Prestige Panel -->
+            <div class="tab-panel" id="prestige-panel">
+                <h3>الصعود الأسطوري</h3>
+                <div class="prestige-content">
+                    <div class="prestige-info">
+                        <div class="prestige-icon">🌟</div>
+                        <p>صهر جميع سيوفك للحصول على <strong>روح السيف</strong></p>
+                        <p class="prestige-bonus">كل روح = +100% ضرر أساسي دائم</p>
                     </div>
-                    <p class="mining-desc">انقر على الصخرة لاستخراج النقاط والمواد النادرة!</p>
+                    <div class="prestige-preview">
+                        <div class="current-spirits">
+                            <span class="label">أرواح حالية</span>
+                            <span class="value" id="current-spirits">0</span>
+                        </div>
+                        <div class="prestige-arrow">→</div>
+                        <div class="gained-spirits">
+                            <span class="label">أرواح ستكتسبها</span>
+                            <span class="value" id="gained-spirits">0</span>
+                        </div>
+                    </div>
+                    <button class="prestige-btn" id="prestige-btn" disabled>
+                        <span>🔥 الصعود 🔥</span>
+                        <small>يتطلب الموجة 50</small>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mining Panel -->
+            <div class="tab-panel" id="mining-panel">
+                <h3>منجم الموارد</h3>
+                <div class="mining-container">
+                    <div class="rock-container">
+                        <div class="rock" id="mining-rock">
+                            <span class="rock-emoji">🪨</span>
+                            <div class="pickaxe-animation" id="pickaxe-anim">⛏️</div>
+                        </div>
+                        <div class="mining-feedback" id="mining-feedback"></div>
+                    </div>
+                    <div class="mining-stats-panel">
+                        <div class="mining-stat">
+                            <span class="label">قوة التعدين</span>
+                            <span class="value" id="mining-power-display">1</span>
+                        </div>
+                        <p class="mining-desc">انقر على الصخرة لاستخراج النقاط والمواد النادرة!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Referrals Panel -->
+            <div class="tab-panel" id="referrals-panel">
+                <h3>👥 دعوة الأصدقاء</h3>
+                <div class="referral-content">
+                    <div class="referral-info-box">
+                        <div class="info-icon">🎁</div>
+                        <p>ادعُ أصدقاءك واربح جوائز أسطورية للطرفين!</p>
+                        <div class="rewards-list">
+                            <div class="reward-item">
+                                <span class="reward-for">لك:</span>
+                                <span class="reward-val">1000 🪙 + 5 ✨</span>
+                            </div>
+                            <div class="reward-item">
+                                <span class="reward-for">لصديقك:</span>
+                                <span class="reward-val">500 🪙 هدية ترحيبية</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="link-section">
+                        <label>رابط الدعوة الخاص بك:</label>
+                        <div class="copy-container">
+                            <input type="text" id="referral-link-input" readonly>
+                            <button id="copy-ref-btn" class="copy-btn">نسخ</button>
+                        </div>
+                    </div>
+
+                    <div class="share-options">
+                        <button class="share-btn whatsapp" id="share-whatsapp">WhatsApp</button>
+                        <button class="share-btn telegram" id="share-telegram">Telegram</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Characters Panel -->
+            <div class="tab-panel" id="characters-panel">
+                <div class="panel-header">
+                    <h3>🎭 متجر وعرين الأبطال</h3>
+                    <div class="gems-indicator">
+                        <span class="icon">💎</span>
+                        <span id="chars-gem-count">0</span>
+                    </div>
+                </div>
+                <div class="characters-intro">
+                    <p>استخدم أحجار الأساطير 💎 لفتح وتطوير الأبطال الأسطوريين. كل بطل يمنحك قوة فريدة تتطور مع مستواه!
+                    </p>
+                </div>
+                <div class="characters-grid" id="characters-grid">
+                    <!-- سيتم توليد الأبطال هنا برمجياً -->
                 </div>
             </div>
         </div>
@@ -441,8 +503,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Name Input Modal -->
+    <div class="modal" id="name-modal">
+        <div class="modal-content name-modal-content">
+            <div class="modal-header">
+                <h3>⚔️ مرحباً بك في Blade Weaver!</h3>
+            </div>
+            <div class="modal-body">
+                <div class="name-input-section">
+                    <p class="name-prompt">أدخل اسمك ليظهر في لوحة الصدارة</p>
+                    <input type="text" id="player-name-input" class="name-input" placeholder="اسمك..." maxlength="20"
+                        autocomplete="off">
+                    <p class="name-hint">سيتم حفظ تقدمك تلقائياً</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn start-btn" id="start-game-btn" disabled>ابدأ اللعب!</button>
+            </div>
+        </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script src="leaderboard.js"></script>
+    <script src="referral.js"></script>
+    <script src="missions.js"></script>
+    <script src="tutorial.js"></script>
     <script src="game.js"></script>
 </body>
 

@@ -10,6 +10,7 @@ const gameState = {
     // Resources
     gold: 0,
     smithingPoints: 0,
+    gems: 0, // العملة الجديدة النادرة
 
     // Click power
     clickPower: 1,
@@ -37,6 +38,22 @@ const gameState = {
     inventory: [],
     equippedSword: null,
 
+    // Characters System
+    ownedCharacters: ['default'],
+    activeCharacter: 'default',
+    characterLevels: {
+        'default': 1,
+        'berserker': 1,
+        'alchemist': 1,
+        'king': 1,
+        'miner': 1,
+        'smith': 1,
+        'treasurer': 1,
+        'wise': 1,
+        'engineer': 1,
+        'luck': 1
+    },
+
     // Combat
     wave: 1,
     currentEnemy: null,
@@ -51,8 +68,22 @@ const gameState = {
         totalEnemies: 0,
         highestWave: 1,
         totalGold: 0,
+        totalGems: 0,
         bestSwordDamage: 0
     }
+};
+
+const Characters = {
+    'default': { id: 'default', nameAr: "الحداد المبتدئ", icon: "🧙‍♂️", desc: "بطل متوازن، لا توجد علاوات إضافية.", cost: 0 },
+    'berserker': { id: 'berserker', nameAr: "المحارب الهائج", icon: "🧔‍♂️", desc: "زيادة ضرر الهجوم الأساسي.", cost: 5, buffType: 'damage' },
+    'alchemist': { id: 'alchemist', nameAr: "الخيميائي", icon: "🧪", desc: "زيادة كمية المواد المكتسبة من الأعداء.", cost: 10, buffType: 'materials' },
+    'king': { id: 'king', nameAr: "الملك الذهبي", icon: "🤴", desc: "زيادة الذهب المكتسب من هزيمة الأعداء.", cost: 20, buffType: 'gold' },
+    'miner': { id: 'miner', nameAr: "أسطورة المناجم", icon: "⛏️", desc: "زيادة قوة التعدين وفرصة المواد النادرة.", cost: 15, buffType: 'mining' },
+    'smith': { id: 'smith', nameAr: "خبير الحدادة", icon: "⚒️", desc: "زيادة نقاط الحدادة المكتسبة عند النقر.", cost: 25, buffType: 'smithing' },
+    'treasurer': { id: 'treasurer', nameAr: "صائد الكنوز", icon: "🗺️", desc: "زيادة فرصة الحصول على مواد من فئات نادرة.", cost: 30, buffType: 'rarity' },
+    'wise': { id: 'wise', nameAr: "حكيم الأرواح", icon: "🕯️", desc: "زيادة أرواح السيف المكتسبة عند الصعود.", cost: 40, buffType: 'spirit' },
+    'engineer': { id: 'engineer', nameAr: "المهندس الآلي", icon: "⚙️", desc: "زيادة قوة النقر التلقائي.", cost: 35, buffType: 'autoclick' },
+    'luck': { id: 'luck', nameAr: "سيد الحظ", icon: "🎲", desc: "زيادة فرصة النجاح في صنع السيوف النادرة.", cost: 50, buffType: 'luck' }
 };
 
 // =====================================================
@@ -166,6 +197,7 @@ const UPGRADE_COSTS = {
 const DOM = {
     // Header
     goldDisplay: document.getElementById('gold-display'),
+    gemDisplay: document.getElementById('gem-display'),
     spiritDisplay: document.getElementById('spirit-display'),
 
     // Smithing
@@ -291,7 +323,12 @@ function getUpgradeCost(type) {
 function handleAnvilClick() {
     // Calculate points gained
     const spiritBonus = 1 + gameState.swordSpirit;
-    const pointsGained = gameState.clickPower * spiritBonus;
+    let pointsGained = gameState.clickPower * spiritBonus;
+
+    // Smith Character Buff: Extra smithing points
+    if (gameState.activeCharacter === 'smith') {
+        pointsGained *= getCharacterBuff('smith');
+    }
 
     gameState.smithingPoints += pointsGained;
     gameState.stats.totalClicks++;
@@ -515,9 +552,16 @@ function determineRarity(isLuckCraft = false) {
 
     roll = Math.max(0, roll - furnaceBonus);
 
+    // Adjustment: Use luck character buff
+    let luckMultiplier = 1;
+    if (gameState.activeCharacter === 'luck') {
+        luckMultiplier = getCharacterBuff('luck');
+    }
+
     let cumulative = 0;
     for (const [key, config] of Object.entries(table)) {
-        cumulative += config.chance;
+        const chance = config.chance * (key !== 'common' ? luckMultiplier : 1);
+        cumulative += chance;
         if (roll < cumulative) return key;
     }
     return 'common';
@@ -527,7 +571,13 @@ function determineRarity(isLuckCraft = false) {
 // MINING SYSTEM
 // =====================================================
 function handleRockClick() {
-    const miningPower = gameState.upgrades.pickaxe;
+    let miningPower = gameState.upgrades.pickaxe;
+
+    // Miner Character Buff: Mining power multiplier
+    if (gameState.activeCharacter === 'miner') {
+        miningPower *= getCharacterBuff('miner');
+    }
+
     const spiritBonus = 1 + gameState.swordSpirit;
     const pointsGained = Math.floor(miningPower * 2 * spiritBonus);
 
@@ -643,6 +693,11 @@ function attackEnemy() {
         critChance = gameState.equippedSword.critChance;
     }
 
+    // Berserker Buff: Damage Multiplier
+    if (gameState.activeCharacter === 'berserker') {
+        damage *= getCharacterBuff('berserker');
+    }
+
     // Critical hit check
     if (Math.random() * 100 < critChance) {
         damage = Math.floor(damage * 2);
@@ -682,14 +737,34 @@ function showDamageNumber(damage, isCrit) {
 function defeatEnemy() {
     gameState.stats.totalEnemies++;
 
+    // King Buff: Gold Multiplier
+    let goldMultiplier = 1;
+    if (gameState.activeCharacter === 'king') {
+        goldMultiplier = getCharacterBuff('king');
+    }
+
     // Calculate loot
-    const goldReward = Math.floor(10 * gameState.wave * (1 + Math.random() * 0.5));
+    const goldReward = Math.floor(10 * gameState.wave * (1 + Math.random() * 0.5) * goldMultiplier);
     gameState.gold += goldReward;
     gameState.stats.totalGold += goldReward;
+
+    // Boss Wave Gem Drop (Every 10 waves)
+    // Alchemist Buff: Higher gem chance or amount (Optional, but let's stick to 10 characters)
+    if (gameState.wave % 10 === 0) {
+        if (Math.random() < 0.2) { // 20% chance for a Legend Gem
+            gameState.gems += 1;
+            gameState.stats.totalGems += 1;
+            showFloatingText("+1 💎 حجر أسطوري!", 'gem');
+        }
+    }
 
     // Material drops
     const materialDrop = getMaterialDrop();
     if (materialDrop) {
+        // Alchemist Buff: Bonus material amount based on level
+        if (gameState.activeCharacter === 'alchemist') {
+            materialDrop.amount += Math.floor(getCharacterBuff('alchemist'));
+        }
         gameState.materials[materialDrop.type] += materialDrop.amount;
     }
 
@@ -713,7 +788,13 @@ function defeatEnemy() {
 }
 
 function getMaterialDrop() {
-    const dropChance = 30 + (gameState.wave * 2); // Higher waves = more drops
+    let dropChance = 30 + (gameState.wave * 2); // Higher waves = more drops
+
+    // Treasurer Character Buff: Higher material drop chance
+    if (gameState.activeCharacter === 'treasurer') {
+        dropChance *= getCharacterBuff('treasurer');
+    }
+
     if (Math.random() * 100 > dropChance) return null;
 
     // Determine material type based on wave
@@ -781,7 +862,13 @@ function updatePrestigeAvailability() {
     DOM.prestigeBtn.disabled = !canPrestige;
 
     // Calculate potential spirits gained
-    const spiritsGained = Math.floor(gameState.wave / 10);
+    let spiritsGained = Math.floor(gameState.wave / 10);
+
+    // Wise Character Buff: Spirit bonus
+    if (gameState.activeCharacter === 'wise') {
+        spiritsGained = Math.floor(spiritsGained * getCharacterBuff('wise'));
+    }
+
     DOM.gainedSpirits.textContent = spiritsGained;
 }
 
@@ -789,7 +876,13 @@ function doPrestige() {
     if (gameState.wave < 50) return;
 
     // Calculate spirits gained
-    const spiritsGained = Math.floor(gameState.wave / 10);
+    let spiritsGained = Math.floor(gameState.wave / 10);
+
+    // Wise Character Buff: Spirit bonus
+    if (gameState.activeCharacter === 'wise') {
+        spiritsGained = Math.floor(spiritsGained * getCharacterBuff('wise'));
+    }
+
     gameState.swordSpirit += spiritsGained;
 
     // Reset progress but keep spirits
@@ -829,7 +922,109 @@ function switchTab(tabName) {
     DOM.tabPanels.forEach(panel => {
         panel.classList.toggle('active', panel.id === tabName + '-panel');
     });
+
+    if (tabName === 'characters') {
+        updateCharactersUI();
+    }
 }
+
+function getCharacterBuff(id) {
+    const level = gameState.characterLevels[id] || 1;
+    const char = Characters[id];
+    if (!char || !char.buffType) return 1;
+
+    switch (char.buffType) {
+        case 'damage': return 2 + (level - 1) * 0.5; // Starts x2, +0.5 per level
+        case 'materials': return 1 + (level - 1) * 1; // Extra material amount
+        case 'gold': return 1.5 + (level - 1) * 0.2; // Starts x1.5, +20% per level
+        case 'mining': return 1 + level * 0.5; // Power multiplier
+        case 'smithing': return 1 + level * 0.2; // Extra multiplier
+        case 'rarity': return 1 + level * 0.1; // Luck multiplier
+        case 'spirit': return 1 + level * 0.25; // Prestige bonus
+        case 'autoclick': return level * 2; // Extra power
+        case 'luck': return 1 + level * 0.05; // Crafting luck
+        default: return 1;
+    }
+}
+
+function updateCharactersUI() {
+    const grid = document.getElementById('characters-grid');
+    const gemCountDisplay = document.getElementById('chars-gem-count');
+    if (!grid) return;
+
+    if (gemCountDisplay) {
+        gemCountDisplay.textContent = formatNumber(gameState.gems);
+    }
+
+    grid.innerHTML = '';
+    Object.entries(Characters).forEach(([id, char]) => {
+        const isOwned = gameState.ownedCharacters.includes(id);
+        const isActive = gameState.activeCharacter === id;
+        const level = gameState.characterLevels[id] || 1;
+        const nextLevelCost = level * 10; // Upgrade cost: 10, 20, 30...
+
+        const card = document.createElement('div');
+        card.className = `character-card ${isActive ? 'active' : ''} ${isOwned ? 'owned' : ''}`;
+        card.innerHTML = `
+            <div class="char-icon">${char.icon}</div>
+            <div class="char-info">
+                <div class="char-name">${char.nameAr} ${isOwned ? `<span class="char-level">Lv.${level}</span>` : ''}</div>
+                <div class="char-desc">${char.desc}</div>
+                ${isOwned && id !== 'default' ? `<div class="char-buff-val">القوة الحالية: x${getCharacterBuff(id).toFixed(1)}</div>` : ''}
+            </div>
+            <div class="char-action">
+                ${isActive ?
+                '<button class="char-btn active-status" disabled>مجهز ✅</button>' :
+                isOwned ?
+                    `<button class="char-btn equip-btn" onclick="setActiveCharacter('${id}')">تجهيز</button>` :
+                    `<button class="char-btn buy-btn" onclick="buyCharacter('${id}')">${char.cost} 💎</button>`
+            }
+                ${isOwned && id !== 'default' && level < 10 ?
+                `<button class="char-btn upgrade-btn" onclick="upgradeCharacter('${id}')">تطوير (${nextLevelCost} 💎)</button>` :
+                isOwned && level >= 10 ? '<span class="max-level">أقصى مستوى</span>' : ''
+            }
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+window.upgradeCharacter = function (id) {
+    const level = gameState.characterLevels[id] || 1;
+    const upgradeCost = level * 10;
+
+    if (gameState.gems >= upgradeCost) {
+        gameState.gems -= upgradeCost;
+        gameState.characterLevels[id] = level + 1;
+        updateUI();
+        updateCharactersUI();
+        saveGame();
+        alert(`✨ تم تطوير ${Characters[id].nameAr} إلى المستوى ${level + 1}!`);
+    } else {
+        alert("💎 لا تملك أحجار أساطير كافية للتطوير!");
+    }
+};
+
+window.buyCharacter = function (id) {
+    const char = Characters[id];
+    if (gameState.gems >= char.cost) {
+        gameState.gems -= char.cost;
+        gameState.ownedCharacters.push(id);
+        updateUI();
+        updateCharactersUI();
+        saveGame();
+        alert(`🎉 تم شراء ${char.nameAr} بنجاح!`);
+    } else {
+        alert("💎 لا تملك أحجار أساطير كافية! اهزم الزعماء (كل 10 موجات) للحصول عليها.");
+    }
+};
+
+window.setActiveCharacter = function (id) {
+    gameState.activeCharacter = id;
+    updateUI();
+    updateCharactersUI();
+    saveGame();
+};
 
 // =====================================================
 // UI UPDATE FUNCTIONS
@@ -837,6 +1032,7 @@ function switchTab(tabName) {
 function updateUI() {
     // Header
     DOM.goldDisplay.textContent = formatNumber(gameState.gold);
+    if (DOM.gemDisplay) DOM.gemDisplay.textContent = formatNumber(gameState.gems);
     DOM.spiritDisplay.textContent = formatNumber(gameState.swordSpirit);
 
     // Smithing
@@ -1065,6 +1261,18 @@ function loadGame() {
         const data = JSON.parse(saved);
         Object.assign(gameState, data);
 
+        // Ensure characterLevels exists
+        if (!gameState.characterLevels) {
+            gameState.characterLevels = {};
+        }
+
+        // Populate missing levels
+        Object.keys(Characters).forEach(id => {
+            if (!gameState.characterLevels[id]) {
+                gameState.characterLevels[id] = 1;
+            }
+        });
+
         // Recalculate derived values
         gameState.clickPower = gameState.upgrades.hammer || 1;
         gameState.autoClickPower = gameState.upgrades.bellows || 0;
@@ -1092,7 +1300,14 @@ function startAutoClickLoop() {
     autoClickInterval = setInterval(() => {
         if (gameState.autoClickPower > 0) {
             const spiritBonus = 1 + gameState.swordSpirit;
-            gameState.smithingPoints += gameState.autoClickPower * spiritBonus;
+            let finalPower = gameState.autoClickPower;
+
+            // Engineer Character Buff: Extra auto-click power
+            if (gameState.activeCharacter === 'engineer') {
+                finalPower += getCharacterBuff('engineer');
+            }
+
+            gameState.smithingPoints += finalPower * spiritBonus;
             updateUI();
         }
     }, 1000);
@@ -1167,7 +1382,214 @@ function setupEventListeners() {
 // =====================================================
 // INITIALIZATION
 // =====================================================
+let playerName = null;
+
+function showNameModal() {
+    const nameModal = document.getElementById('name-modal');
+    const nameInput = document.getElementById('player-name-input');
+    const startBtn = document.getElementById('start-game-btn');
+
+    // Check if player exists
+    const existingPlayer = LeaderboardSystem.getPlayer();
+    if (existingPlayer) {
+        playerName = existingPlayer.name;
+        nameModal.classList.add('hidden');
+        startGameSystems();
+        return;
+    }
+
+    nameModal.classList.remove('hidden');
+
+    nameInput.addEventListener('input', () => {
+        const name = nameInput.value.trim();
+        startBtn.disabled = name.length < 2;
+    });
+
+    startBtn.addEventListener('click', () => {
+        const name = nameInput.value.trim();
+        if (name.length >= 2) {
+            playerName = name;
+            LeaderboardSystem.createPlayer(name);
+            nameModal.classList.add('hidden');
+            startGameSystems();
+        }
+    });
+
+    nameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            startBtn.click();
+        }
+    });
+}
+
+function startGameSystems() {
+    // Show tutorial for new players
+    TutorialSystem.show(() => {
+        console.log('Tutorial completed or skipped');
+    });
+
+    // Process potential referral for new player
+    const player = LeaderboardSystem.getPlayer();
+    if (player) {
+        ReferralSystem.processNewPlayerReferral(player.id);
+    }
+
+    // Initialize missions
+    updateMissionsUI();
+
+    // Initialize leaderboard
+    updateLeaderboardUI();
+
+    // Setup Referral UI
+    setupReferralUI();
+
+    // Start game loops
+    startCombatLoop();
+    startAutoClickLoop();
+
+    // Check for referral rewards every minute
+    setInterval(() => {
+        ReferralSystem.checkRewardsForReferrer();
+    }, 60000);
+
+    // Auto-save every 30 seconds
+    setInterval(() => {
+        saveGame();
+        updateLeaderboard();
+    }, 30000);
+
+    console.log('⚔️ Blade Weaver initialized!');
+}
+
+function updateMissionsUI() {
+    const missionsGrid = document.getElementById('missions-grid');
+    if (!missionsGrid) return;
+
+    const missions = MissionsSystem.getDailyMissions();
+    missionsGrid.innerHTML = '';
+
+    missions.forEach(mission => {
+        const progressPercent = Math.min((mission.progress / mission.target) * 100, 100);
+
+        const card = document.createElement('div');
+        card.className = 'mission-card' + (mission.completed ? ' completed' : '') + (mission.claimed ? ' claimed' : '');
+
+        card.innerHTML = `
+            <div class="mission-icon">${mission.icon}</div>
+            <div class="mission-info">
+                <div class="mission-name">${mission.nameAr}</div>
+                <div class="mission-desc">${mission.descAr}</div>
+                <div class="mission-progress">
+                    <div class="mission-progress-bar">
+                        <div class="mission-progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                    <span class="mission-progress-text">${mission.progress}/${mission.target}</span>
+                </div>
+            </div>
+            <div class="mission-reward">
+                <span class="reward-amount">🪙 ${mission.reward}</span>
+                ${mission.claimed ?
+                '<span class="claimed-badge">✓ تم</span>' :
+                mission.completed ?
+                    `<button class="claim-btn" data-mission-id="${mission.id}">استلم</button>` :
+                    '<button class="claim-btn" disabled>استلم</button>'
+            }
+            </div>
+        `;
+
+        missionsGrid.appendChild(card);
+    });
+
+    // Add claim button listeners
+    missionsGrid.querySelectorAll('.claim-btn:not(:disabled)').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const missionId = e.target.dataset.missionId;
+            const reward = MissionsSystem.claimReward(missionId);
+            if (reward > 0) {
+                gameState.gold += reward;
+                gameState.stats.totalGold += reward;
+                updateUI();
+                updateMissionsUI();
+                saveGame();
+            }
+        });
+    });
+}
+
+async function updateLeaderboard() {
+    if (!playerName) return;
+
+    const score = MissionsSystem.calculateScore(gameState);
+    await LeaderboardSystem.submitScore(
+        playerName,
+        score,
+        gameState.stats.highestWave,
+        gameState.stats.totalSwords
+    );
+    updateLeaderboardUI();
+}
+
+async function updateLeaderboardUI() {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const playerNameEl = document.getElementById('leaderboard-player-name');
+    const playerScoreEl = document.getElementById('leaderboard-player-score');
+    const playerRankEl = document.getElementById('leaderboard-player-rank');
+
+    if (!leaderboardList) return;
+
+    // Show loading if empty
+    if (leaderboardList.innerHTML.trim() === '') {
+        leaderboardList.innerHTML = '<div class="empty-leaderboard">جاري تحميل لوحة الصدارة...</div>';
+    }
+
+    // Update player card locally
+    if (playerName) {
+        playerNameEl.textContent = playerName;
+        const score = MissionsSystem.calculateScore(gameState);
+        playerScoreEl.textContent = formatNumber(score);
+    }
+
+    // Get top players from Firebase
+    const topPlayers = await LeaderboardSystem.getTopPlayers(10);
+
+    if (topPlayers.length === 0) {
+        leaderboardList.innerHTML = '<div class="empty-leaderboard">لا توجد نتائج بعد - كن الأول!</div>';
+        return;
+    }
+
+    leaderboardList.innerHTML = '';
+
+    topPlayers.forEach((entry, index) => {
+        const rank = index + 1;
+        const isCurrentPlayer = entry.name === playerName;
+
+        let rankClass = '';
+        if (rank === 1) rankClass = 'gold';
+        else if (rank === 2) rankClass = 'silver';
+        else if (rank === 3) rankClass = 'bronze';
+
+        const div = document.createElement('div');
+        div.className = 'leaderboard-entry' + (isCurrentPlayer ? ' current-player' : '');
+        div.innerHTML = `
+            <span class="entry-rank ${rankClass}">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank}</span>
+            <span class="entry-name">${entry.name}</span>
+            <span class="entry-score">${formatNumber(entry.score)}</span>
+            <span class="entry-wave">🌊 ${entry.wave}</span>
+        `;
+        leaderboardList.appendChild(div);
+    });
+}
+
+// Track mission progress
+function trackMissionProgress(type, amount = 1, absolute = false) {
+    MissionsSystem.updateProgress(type, amount, absolute);
+    updateMissionsUI();
+}
+
 function initGame() {
+    // Check for referral link in URL
+    ReferralSystem.checkReferralOnLoad();
+
     // Load saved game
     loadGame();
 
@@ -1187,15 +1609,100 @@ function initGame() {
     updateInventoryUI();
     updateCraftingUI();
 
-    // Start game loops
-    startCombatLoop();
-    startAutoClickLoop();
+    // Show name modal or start game
+    showNameModal();
+}
 
-    // Auto-save every 30 seconds
-    setInterval(saveGame, 30000);
+// Override original functions to track missions
 
-    console.log('⚔️ Blade Weaver initialized!');
+// Track clicks
+const originalHandleAnvilClick = handleAnvilClick;
+handleAnvilClick = function () {
+    originalHandleAnvilClick();
+    trackMissionProgress('clicks', 1);
+};
+
+// Track enemies defeated
+const originalDefeatEnemy = defeatEnemy;
+defeatEnemy = function () {
+    originalDefeatEnemy();
+    trackMissionProgress('enemies', 1);
+    trackMissionProgress('wave', gameState.wave, true);
+    trackMissionProgress('gold', gameState.stats.totalGold, true);
+    updateLeaderboard();
+};
+
+// Track swords crafted
+const originalCraftSword = craftSword;
+craftSword = function () {
+    const beforeCount = gameState.stats.totalSwords;
+    originalCraftSword();
+    if (gameState.stats.totalSwords > beforeCount) {
+        trackMissionProgress('swords', 1);
+        // Check for rare sword
+        if (gameState._tempSword && gameState._tempSword.rarity !== 'common') {
+            trackMissionProgress('rare_sword', 1);
+        }
+        updateLeaderboard();
+    }
+};
+
+// Track mining
+const originalHandleRockClick = handleRockClick;
+handleRockClick = function () {
+    const beforeMats = Object.values(gameState.materials).reduce((a, b) => a + b, 0);
+    originalHandleRockClick();
+    const afterMats = Object.values(gameState.materials).reduce((a, b) => a + b, 0);
+    if (afterMats > beforeMats) {
+        trackMissionProgress('mining', afterMats - beforeMats);
+    }
+};
+
+// Track prestige
+const originalDoPrestige = doPrestige;
+doPrestige = function () {
+    originalDoPrestige();
+    trackMissionProgress('prestige', 1);
+    updateLeaderboard();
+};
+
+function setupReferralUI() {
+    const linkInput = document.getElementById('referral-link-input');
+    const copyBtn = document.getElementById('copy-ref-btn');
+    const whatsappBtn = document.getElementById('share-whatsapp');
+    const telegramBtn = document.getElementById('share-telegram');
+
+    if (linkInput) {
+        const link = ReferralSystem.getReferralLink();
+        linkInput.value = link || "يجب تحديد اسم أولاً";
+    }
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            linkInput.select();
+            document.execCommand('copy');
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'تم النسخ!';
+            setTimeout(() => copyBtn.textContent = originalText, 2000);
+        });
+    }
+
+    const shareText = "⚔️ انضم إلي في لعبة Blade Weaver! اصنع السيوف الأسطورية واحصل على 500 ذهبة هدية عند البدء من هذا الرابط:";
+    const refLink = ReferralSystem.getReferralLink();
+
+    if (whatsappBtn) {
+        whatsappBtn.addEventListener('click', () => {
+            window.open(`https://wa.me/?text=${encodeURIComponent(shareText + "\n" + refLink)}`);
+        });
+    }
+
+    if (telegramBtn) {
+        telegramBtn.addEventListener('click', () => {
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`);
+        });
+    }
 }
 
 // Start the game when DOM is ready
 document.addEventListener('DOMContentLoaded', initGame);
+
