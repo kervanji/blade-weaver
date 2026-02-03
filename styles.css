@@ -2972,3 +2972,27 @@ body {
         padding: 10px;
     }
 }
+
+/* =====================================================
+   FOOTER & CREDITS
+   ===================================================== */
+.game-footer {
+    text-align: center;
+    padding: var(--spacing-lg) 0;
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-xl);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.designer-link {
+    color: var(--color-gold);
+    text-decoration: none;
+    font-weight: bold;
+    transition: all var(--transition-normal);
+}
+
+.designer-link:hover {
+    color: var(--color-gold-light);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
