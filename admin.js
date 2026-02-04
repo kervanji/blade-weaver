@@ -136,11 +136,8 @@ const AdminSystem = {
     // NOTIFICATION SYSTEM
     // =====================================================
     sendNotification: function (message, type = 'info') {
-        // Check if notifications are enabled in game settings
-        if (window.gameState && window.gameState.settings && !window.gameState.settings.notificationsEnabled) {
-            console.log(`Notification blocked by user settings: "${message}"`);
-            return; // Don't show notification if disabled
-        }
+        if (window.DISABLE_IN_GAME_NOTIFICATIONS) return;
+        if (!window.gameState || !window.gameState.settings || !window.gameState.settings.notificationsEnabled) return;
 
         const notification = document.createElement('div');
         notification.className = `game-notification ${type}`;

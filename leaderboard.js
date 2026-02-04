@@ -26,8 +26,32 @@ if (typeof firebase !== 'undefined') {
 }
 
 const PLAYER_KEY = 'bladeWeaver_player';
+const SEASON_KEY = 'bladeWeaver_season';
+
+function getISOWeek(date) {
+    const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNr = (target.getUTCDay() + 6) % 7;
+    target.setUTCDate(target.getUTCDate() - dayNr + 3);
+    const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+    const diff = target - firstThursday;
+    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+}
 
 const LeaderboardSystem = {
+    getCurrentSeasonKey: function () {
+        const now = new Date();
+        const year = now.getFullYear();
+        const week = getISOWeek(now);
+        return `${year}-W${week.toString().padStart(2, '0')}`;
+    },
+
+    getPreviousSeasonKey: function () {
+        const now = new Date();
+        const prev = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const year = prev.getFullYear();
+        const week = getISOWeek(prev);
+        return `${year}-W${week.toString().padStart(2, '0')}`;
+    },
     // Get or create player profile (Locally)
     getPlayer: function () {
         const saved = localStorage.getItem(PLAYER_KEY);
@@ -81,6 +105,7 @@ const LeaderboardSystem = {
                 wave: wave,
                 swordsForged: swordsForged,
                 swordSpirit: gameState.swordSpirit || 0, // نقاط الصعود
+                season: this.getCurrentSeasonKey(),
                 equipment: equipment || { head: null, body: null, weapon: null },
                 activeCharacter: activeCharacter || 'default',
                 inventory: inventory || [],
@@ -98,11 +123,67 @@ const LeaderboardSystem = {
         if (!db) return [];
 
         try {
-            // Fetch more players than needed to account for duplicates
+            const season = this.getCurrentSeasonKey();
+            const fetchAndSort = async (query) => {
+                const snapshot = await query.get();
+                const players = [];
+                snapshot.forEach(doc => {
+                    players.push(doc.data());
+                });
+
+                const uniquePlayers = {};
+                for (const player of players) {
+                    if (!uniquePlayers[player.name] || player.score > uniquePlayers[player.name].score) {
+                        uniquePlayers[player.name] = player;
+                    }
+                }
+
+                return Object.values(uniquePlayers)
+                    .sort((a, b) => {
+                        if ((b.swordSpirit || 0) !== (a.swordSpirit || 0)) {
+                            return (b.swordSpirit || 0) - (a.swordSpirit || 0);
+                        }
+                        return b.score - a.score;
+                    })
+                    .slice(0, limit);
+            };
+
+            // Try current season first (may require a composite index)
+            try {
+                const seasonQuery = db.collection("leaderboard")
+                    .where("season", "==", season)
+                    .orderBy("swordSpirit", "desc")
+                    .orderBy("score", "desc")
+                    .limit(limit * 3);
+
+                const seasonPlayers = await fetchAndSort(seasonQuery);
+                if (seasonPlayers.length > 0) return seasonPlayers;
+            } catch (e) {
+                console.warn("Season query failed, falling back to legacy leaderboard.", e);
+            }
+
+            // Fallback to legacy records without season
+            const legacyQuery = db.collection("leaderboard")
+                .orderBy("swordSpirit", "desc")
+                .orderBy("score", "desc")
+                .limit(limit * 3);
+
+            return await fetchAndSort(legacyQuery);
+        } catch (error) {
+            console.error("Error getting leaderboard:", error);
+            return [];
+        }
+    },
+
+    // Get top players for a specific season
+    getTopPlayersBySeason: async function (season, limit = 10) {
+        if (!db) return [];
+        try {
             const snapshot = await db.collection("leaderboard")
-                .orderBy("swordSpirit", "desc") // ترتيب حسب نقاط الصعود أولاً
-                .orderBy("score", "desc") // ثم حسب النقاط
-                .limit(limit * 3) // Fetch 3x the limit to be safe
+                .where("season", "==", season)
+                .orderBy("swordSpirit", "desc")
+                .orderBy("score", "desc")
+                .limit(limit * 3)
                 .get();
 
             const players = [];
@@ -110,7 +191,6 @@ const LeaderboardSystem = {
                 players.push(doc.data());
             });
 
-            // Process to get unique players with their highest score
             const uniquePlayers = {};
             for (const player of players) {
                 if (!uniquePlayers[player.name] || player.score > uniquePlayers[player.name].score) {
@@ -118,29 +198,25 @@ const LeaderboardSystem = {
                 }
             }
 
-            // Convert back to an array, sort by score, and take the top players
-            const sortedUniquePlayers = Object.values(uniquePlayers)
+            return Object.values(uniquePlayers)
                 .sort((a, b) => {
-                    // ترتيب حسب نقاط الصعود أولاً
                     if ((b.swordSpirit || 0) !== (a.swordSpirit || 0)) {
                         return (b.swordSpirit || 0) - (a.swordSpirit || 0);
                     }
-                    // ثم حسب النقاط
                     return b.score - a.score;
                 })
                 .slice(0, limit);
-
-            return sortedUniquePlayers;
         } catch (error) {
-            console.error("Error getting leaderboard:", error);
+            console.error("Error getting leaderboard by season:", error);
             return [];
         }
     },
 
-    // Get player rank (Simulated locally among top players or fetched)
-    getPlayerRank: async function (playerName) {
-        // لجلب الترتيب الفعلي نحتاج لاستعلام إضافي، للتبسيط سنكتفي بالرتبة من ضمن التوب 10 حالياً
-        return null;
+    // Get player rank within top list
+    getPlayerRankTop10: function (playerName, topPlayers) {
+        if (!playerName || !Array.isArray(topPlayers)) return null;
+        const idx = topPlayers.findIndex(p => p.name === playerName);
+        return idx >= 0 ? idx + 1 : null;
     },
 
     // Check if name is already taken in Firebase

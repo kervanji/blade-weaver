@@ -59,6 +59,10 @@ const AuthService = {
     initMessaging: async function () {
         if (typeof firebase !== 'undefined' && firebase.messaging) {
             try {
+                if (!window.gameState || !window.gameState.settings || !window.gameState.settings.notificationsEnabled) {
+                    console.log("AuthService: Notifications disabled in game settings.");
+                    return;
+                }
                 const messaging = firebase.messaging();
                 console.log("AuthService: Requesting notification permission...");
 

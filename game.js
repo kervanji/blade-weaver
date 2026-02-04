@@ -70,6 +70,7 @@ var gameState = {
 
     // Prestige
     swordSpirit: 0,
+    pityCounter: 0,
 
     // Statistics
     stats: {
@@ -86,7 +87,8 @@ var gameState = {
     lastFreeUpgradeTime: 0,
     lastMegaAdChestTime: 0,
     settings: {
-        notificationsEnabled: true
+        notificationsEnabled: false,
+        autoSellCommon: false
     }
 };
 
@@ -108,7 +110,15 @@ const Characters = {
 // =====================================================
 const SAVE_KEY = 'bladeWeaver_save';
 const TICK_RATE = 1000;
-const CRAFT_COST = 100;
+const CRAFT_COSTS = {
+    basic: 100,
+    iron: 150,
+    steel: 220,
+    obsidian: 320,
+    dragon: 450,
+    star: 600
+};
+window.DISABLE_IN_GAME_NOTIFICATIONS = true;
 
 const ITEM_TYPES = {
     weapon: {
@@ -318,6 +328,10 @@ function randomFloat(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+function getCraftCost(tier = selectedCraftTier) {
+    return CRAFT_COSTS[tier] || CRAFT_COSTS.basic;
+}
+
 function getUpgradeCost(type) {
     const config = UPGRADE_COSTS[type];
     return Math.floor(config.base * Math.pow(config.multiplier, gameState.upgrades[type]));
@@ -328,6 +342,14 @@ function getGeometricBonus(level) {
     let bonus = Math.pow(2, level); // 2, 4, 8, 16...
     if (bonus > 100) bonus = 100;
     return bonus;
+}
+
+function getSharpenerBonusPercent() {
+    return Math.min(100, (gameState.upgrades.sharpener || 0) * 10);
+}
+
+function getFurnaceBonusPercent() {
+    return Math.min(50, (gameState.upgrades.furnace || 0) * 5);
 }
 
 function recalculatePlayerStats() {
@@ -428,7 +450,7 @@ function getItemIcon(item) {
 // CRAFTING SYSTEM
 // =====================================================
 function canCraft(tier = selectedCraftTier) {
-    if (gameState.smithingPoints < CRAFT_COST) return false;
+    if (gameState.smithingPoints < getCraftCost(tier)) return false;
 
     const tierConfig = MATERIAL_TIERS[tier];
     for (const [material, amount] of Object.entries(tierConfig.materials)) {
@@ -446,7 +468,7 @@ function craftItem() {
     if (!canCraft(selectedCraftTier)) return;
 
     // Consume smithing points
-    gameState.smithingPoints -= CRAFT_COST;
+    gameState.smithingPoints -= getCraftCost(selectedCraftTier);
 
     // Consume materials
     for (const [material, amount] of Object.entries(tierConfig.materials)) {
@@ -456,10 +478,15 @@ function craftItem() {
     // Determine rarity
     const rarity = determineRarity();
     const rarityConfig = RARITY[rarity];
+    if (rarity === 'common') {
+        gameState.pityCounter = (gameState.pityCounter || 0) + 1;
+    } else {
+        gameState.pityCounter = 0;
+    }
 
     // Calculate base stats
     const spiritBonus = 1 + gameState.swordSpirit;
-    const sharpenerBonus = 1 + (getGeometricBonus(gameState.upgrades.sharpener) / 100);
+    const sharpenerBonus = 1 + (getSharpenerBonusPercent() / 100);
 
     let item = {
         id: Date.now(),
@@ -511,22 +538,6 @@ function generateItemName(rarity, tier, baseTypeName) {
     }
     const suffix = SWORD_SUFFIXES[random(0, SWORD_SUFFIXES.length - 1)];
     return prefix + ' ' + suffix + ' (' + tierName + ' ' + baseTypeName + ')';
-}
-
-function determineRarity() {
-    const furnaceBonus = getGeometricBonus(gameState.upgrades.furnace); // Ends at 100%
-    let roll = Math.random() * 100;
-
-    // Adjust roll for furnace bonus (shifts distribution toward rare)
-    // ADDING the bonus pushes the roll higher (towards Rare/Epic/Mythic)
-    roll = Math.min(99.99, roll + furnaceBonus);
-
-    let cumulative = 0;
-    for (const [key, config] of Object.entries(RARITY)) {
-        cumulative += config.chance;
-        if (roll < cumulative) return key;
-    }
-    return 'common';
 }
 
 function generateSwordName(rarity, tier = 'basic') {
@@ -589,7 +600,7 @@ function craftLuckSword() {
     const rarityConfig = RARITY[rarity];
 
     const spiritBonus = 1 + gameState.swordSpirit;
-    const sharpenerBonus = 1 + (getGeometricBonus(gameState.upgrades.sharpener) / 100);
+    const sharpenerBonus = 1 + (getSharpenerBonusPercent() / 100);
 
     const baseDamage = random(3, 12) * rarityConfig.multiplier * spiritBonus * sharpenerBonus;
     const baseSpeed = randomFloat(0.7, 1.3);
@@ -614,10 +625,16 @@ function craftLuckSword() {
 
 function determineRarity(isLuckCraft = false) {
     const table = isLuckCraft ? LUCK_RARITY : RARITY;
-    const furnaceBonus = isLuckCraft ? 0 : getGeometricBonus(gameState.upgrades.furnace);
+    const furnaceBonus = isLuckCraft ? 0 : getFurnaceBonusPercent();
     let roll = Math.random() * 100;
 
-    roll = Math.max(0, roll - furnaceBonus);
+    // Furnace bonus should increase chances for higher rarity
+    let pityBonus = 0;
+    if (!isLuckCraft) {
+        const pityCount = gameState.pityCounter || 0;
+        pityBonus = Math.min(30, pityCount * 2);
+    }
+    roll = Math.min(99.99, roll + furnaceBonus + pityBonus);
 
     // Adjustment: Use luck character buff
     let luckMultiplier = 1;
@@ -639,6 +656,7 @@ function determineRarity(isLuckCraft = false) {
 // =====================================================
 function handleRockClick() {
     let miningPower = gameState.upgrades.pickaxe;
+    let droppedMat = null;
 
     // Miner Character Buff: Mining power multiplier
     if (gameState.activeCharacter === 'miner') {
@@ -646,17 +664,18 @@ function handleRockClick() {
     }
 
     const spiritBonus = 1 + gameState.swordSpirit;
-    const pointsGained = Math.floor(miningPower * 2 * spiritBonus);
+    const pointsGained = Math.floor(miningPower * 1.2 * spiritBonus);
 
     gameState.smithingPoints += pointsGained;
 
     // Updated Mining logic: Chance for all materials with rarity
-    if (Math.random() < 0.15 + (miningPower * 0.01)) {
+    const dropChance = Math.min(0.45, 0.12 + (miningPower * 0.008));
+    if (Math.random() < dropChance) {
         const roll = Math.random() * 100;
         let type = 'iron';
 
         // Rarity chances based on pickaxe level
-        const bonus = miningPower * 1;
+        const bonus = miningPower * 0.6;
         if (roll < 2 + bonus * 0.1) type = 'starMetal';
         else if (roll < 10 + bonus * 0.3) type = 'dragonBone';
         else if (roll < 30 + bonus * 0.5) type = 'obsidian';
@@ -754,6 +773,16 @@ function equipItem(item) {
 }
 
 function addToInventory(item) {
+    if (gameState.settings && gameState.settings.autoSellCommon && item.rarity === 'common') {
+        const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
+        if (!equippedIds.includes(item.id)) {
+            const sellVal = item.sellValue || 0;
+            gameState.gold += sellVal;
+            gameState.stats.totalGold += sellVal;
+            updateUI();
+            return;
+        }
+    }
     if (gameState.inventory.length >= 30) {
         alert("⚠️ الحقيبة ممتلئة!");
         return;
@@ -807,6 +836,11 @@ function attackEnemy() {
     if (weapon) {
         damage = weapon.damage;
         critChance = weapon.critChance;
+    }
+
+    // Sharpener Buff: Global sword damage multiplier
+    if (weapon) {
+        damage = Math.floor(damage * (1 + getSharpenerBonusPercent() / 100));
     }
 
     // Berserker Buff: Damage Multiplier
@@ -1102,8 +1136,8 @@ function showLoot(gold, material) {
 // =====================================================
 function buyUpgrade(type) {
     // Check max level for sharpener and furnace
-    if ((type === 'sharpener' || type === 'furnace') && gameState.upgrades[type] >= 7) {
-        showToast("⚠️ وصل هذا التطوير إلى أقصى مستوى (100%)", "warning");
+    if ((type === 'sharpener' || type === 'furnace') && gameState.upgrades[type] >= 10) {
+        showToast("⚠️ وصل هذا التطوير إلى أقصى مستوى", "warning");
         return;
     }
 
@@ -1174,6 +1208,7 @@ function doPrestige() {
     gameState.equipment = { head: null, body: null, weapon: null };
     gameState.wave = 1;
     gameState.currentEnemy = null;
+    gameState.pityCounter = 0;
 
     // Respawn enemy
     spawnEnemy();
@@ -1387,8 +1422,16 @@ function updateUI() {
         if (gameState.settings) {
             notificationsToggle.checked = gameState.settings.notificationsEnabled;
         } else {
-            // Default to true if settings object doesn't exist
-            notificationsToggle.checked = true;
+            // Default to false if settings object doesn't exist
+            notificationsToggle.checked = false;
+        }
+    }
+    const autoSellToggle = document.getElementById('auto-sell-common-toggle');
+    if (autoSellToggle) {
+        if (gameState.settings) {
+            autoSellToggle.checked = !!gameState.settings.autoSellCommon;
+        } else {
+            autoSellToggle.checked = false;
         }
     }
 
@@ -1418,7 +1461,7 @@ function updateUI() {
     DOM.clickPower.textContent = formatNumber(gameState.clickPower);
 
     // Progress bar
-    const progress = Math.min(gameState.smithingPoints / CRAFT_COST * 100, 100);
+    const progress = Math.min(gameState.smithingPoints / getCraftCost(selectedCraftTier) * 100, 100);
     DOM.progressFill.style.width = progress + '%';
     DOM.progressPercent.textContent = Math.floor(progress) + '%';
 
@@ -1476,6 +1519,15 @@ function updateUpgradeUI() {
         DOM[type + 'Cost'].textContent = formatNumber(cost);
         DOM[type + 'Btn'].disabled = !canAfford;
     });
+
+    const sharpenerDesc = document.querySelector('#sharpener-upgrade .upgrade-desc');
+    if (sharpenerDesc) {
+        sharpenerDesc.textContent = `+${getSharpenerBonusPercent()}% ضرر السيوف`;
+    }
+    const furnaceDesc = document.querySelector('#furnace-upgrade .upgrade-desc');
+    if (furnaceDesc) {
+        furnaceDesc.textContent = `+${getFurnaceBonusPercent()}% فرصة عنصر نادر`;
+    }
 
     // Pickaxe upgrade special case as it's added later
     if (DOM.pickaxeBtn) {
@@ -1916,6 +1968,10 @@ function loadGame() {
         // Ensure HP exists
         if (gameState.hp === undefined) gameState.hp = 100;
         if (gameState.maxHp === undefined) gameState.maxHp = 100;
+        if (gameState.pityCounter === undefined) gameState.pityCounter = 0;
+        if (!gameState.settings) gameState.settings = { notificationsEnabled: false, autoSellCommon: false };
+        gameState.settings.notificationsEnabled = false;
+        if (gameState.settings.autoSellCommon === undefined) gameState.settings.autoSellCommon = false;
 
         recalculatePlayerStats();
     } else {
@@ -2142,6 +2198,7 @@ function startGameSystems() {
 
     // Initialize leaderboard
     updateLeaderboardUI();
+    checkWeeklyResetAndRewards();
 
     // Setup Referral UI
     setupReferralUI();
@@ -2162,6 +2219,66 @@ function startGameSystems() {
     }, 30000);
 
     console.log('⚔️ Blade Weaver initialized!');
+}
+
+function createSeasonRewardWeapon(rank, seasonKey) {
+    const activeChar = Characters[gameState.activeCharacter] || Characters.default;
+    const typeInfo = ITEM_TYPES.weapon[activeChar.class] || ITEM_TYPES.weapon.warrior;
+    const isTop3 = rank <= 3;
+    const rarity = isTop3 ? 'legendary' : 'epic';
+    const baseDamage = isTop3 ? random(110, 150) : random(70, 95);
+    const baseCrit = isTop3 ? 20 : 12;
+    const baseSpeed = isTop3 ? 1.25 : 1.1;
+
+    return {
+        id: Date.now() + rank,
+        name: isTop3 ? `سلاح أسطوري موسم ${seasonKey}` : `سلاح بطولة موسم ${seasonKey}`,
+        rarity: rarity,
+        tier: 'star',
+        category: 'weapon',
+        subType: typeInfo.type,
+        class: activeChar.class,
+        icon: '🏆',
+        damage: Math.floor(baseDamage),
+        attackSpeed: parseFloat(baseSpeed.toFixed(2)),
+        critChance: baseCrit,
+        sellValue: Math.floor(baseDamage * (isTop3 ? 6 : 3)),
+        isSeasonReward: true,
+        seasonKey: seasonKey
+    };
+}
+
+async function checkWeeklyResetAndRewards() {
+    if (!window.LeaderboardSystem || !playerName) return;
+
+    const currentSeason = LeaderboardSystem.getCurrentSeasonKey();
+    const storedSeason = localStorage.getItem('bladeWeaver_season');
+
+    if (!storedSeason) {
+        localStorage.setItem('bladeWeaver_season', currentSeason);
+        return;
+    }
+
+    if (storedSeason === currentSeason) return;
+
+    const rewardKey = `bladeWeaver_rewards_${storedSeason}`;
+    if (localStorage.getItem(rewardKey)) {
+        localStorage.setItem('bladeWeaver_season', currentSeason);
+        return;
+    }
+
+    const topPlayers = await LeaderboardSystem.getTopPlayersBySeason(storedSeason, 10);
+    const rank = LeaderboardSystem.getPlayerRankTop10(playerName, topPlayers);
+
+    if (rank) {
+        const reward = createSeasonRewardWeapon(rank, storedSeason);
+        addToInventory(reward);
+        saveGame(true);
+        alert(`🏆 تهانينا! حصلت على مكافأة نهاية الأسبوع للرتبة ${rank}.`);
+    }
+
+    localStorage.setItem(rewardKey, 'claimed');
+    localStorage.setItem('bladeWeaver_season', currentSeason);
 }
 
 function updateMissionsUI() {
@@ -2260,7 +2377,15 @@ async function updateLeaderboardUI() {
 
     if (topPlayers.length === 0) {
         leaderboardList.innerHTML = '<div class="empty-leaderboard">لا توجد نتائج بعد - كن الأول!</div>';
+        if (playerName) {
+            playerRankEl.textContent = 'خارج التوب 10';
+        }
         return;
+    }
+
+    if (playerName) {
+        const rank = LeaderboardSystem.getPlayerRankTop10(playerName, topPlayers);
+        playerRankEl.textContent = rank ? rank : 'خارج التوب 10';
     }
 
     leaderboardList.innerHTML = '';
@@ -2669,9 +2794,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (notificationsToggle) {
         notificationsToggle.addEventListener('change', (e) => {
             if (!gameState.settings) {
-                gameState.settings = { notificationsEnabled: true };
+                gameState.settings = { notificationsEnabled: false, autoSellCommon: false };
             }
             gameState.settings.notificationsEnabled = e.target.checked;
+            saveGame();
+        });
+    }
+    const autoSellToggle = document.getElementById('auto-sell-common-toggle');
+    if (autoSellToggle) {
+        autoSellToggle.addEventListener('change', (e) => {
+            if (!gameState.settings) {
+                gameState.settings = { notificationsEnabled: false, autoSellCommon: false };
+            }
+            gameState.settings.autoSellCommon = e.target.checked;
             saveGame();
         });
     }

@@ -28,5 +28,6 @@ messaging.onBackgroundMessage(function (payload) {
         icon: '/icon-192.png' // Ensure this icon exists or use a valid path
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    // In-game notifications are disabled to avoid interrupting gameplay.
+    return;
 });
