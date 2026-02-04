@@ -756,7 +756,7 @@
                     <div class="alliance-actions-init">
                         <div class="alliance-create-box">
                             <input type="text" id="alliance-name-input" placeholder="اسم التحالف..." maxlength="15">
-                            <button class="create-btn" id="create-alliance-btn">إنشاء (10000 🪙)</button>
+                            <button class="create-btn" id="create-alliance-btn">إنشاء (1,000,000 🪙)</button>
                         </div>
                         <hr>
                         <h4>البحث عن تحالف</h4>
@@ -783,9 +783,14 @@
                             <div style="color: #aaa; font-size: 0.9rem;">خزينة التحالف</div>
                             <div style="font-size: 1.5rem; color: #ffd700; margin: 5px 0;">💰 <span
                                     id="alliance-funds-val">0</span></div>
+                            <div style="font-size: 1.2rem; color: #8be9fd; margin: 5px 0;">💎 <span
+                                    id="alliance-gems-val">0</span></div>
                             <button onclick="ArenaSystem.donateToAlliance()"
                                 style="background: #27ae60; border: none; padding: 5px 15px; border-radius: 15px; color: white; cursor: pointer; font-size: 0.9rem;">تبرع
                                 بالذهب</button>
+                            <button onclick="ArenaSystem.donateGemsToAlliance()"
+                                style="background: #8e44ad; border: none; padding: 5px 15px; border-radius: 15px; color: white; cursor: pointer; font-size: 0.9rem; margin-right: 6px;">تبرع
+                                بالجواهر</button>
                         </div>
                     </div>
 
@@ -830,6 +835,15 @@
                             <div class="alliance-upgrades-grid" id="alliance-upgrades-list"
                                 style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <!-- Upgrades injected by JS -->
+                                <div style="text-align: center; color: #aaa; grid-column: span 2;">جاري التحميل...</div>
+                            </div>
+                        </div>
+
+                        <div class="alliance-section-card"
+                            style="background: rgba(142, 68, 173, 0.12); border: 1px solid #8e44ad; padding: 15px; border-radius: 10px;">
+                            <h4 style="color: #c39bd3; margin-bottom: 10px;">💎 تطويرات الجواهر</h4>
+                            <div class="alliance-upgrades-grid" id="alliance-gem-upgrades-list"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                 <div style="text-align: center; color: #aaa; grid-column: span 2;">جاري التحميل...</div>
                             </div>
                         </div>

@@ -216,6 +216,7 @@ const AuthService = {
                 // Important: Completely overwrite to avoid duplicates or ghost items
                 window.gameState.inventory = cloudData.inventory || [];
                 window.gameState.equipment = cloudData.equipment || { head: null, body: null, weapon: null };
+                window.gameState.allianceId = cloudData.allianceId || null;
 
                 // 4. Characters
                 window.gameState.ownedCharacters = cloudData.ownedCharacters || ['default'];
@@ -233,8 +234,19 @@ const AuthService = {
                     }
                     if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
                 } else {
-                    console.log("Logged in but no name found. Showing Name Modal.");
-                    if (window.NameModalSystem) window.NameModalSystem.show();
+                    const authUser = firebase.auth().currentUser;
+                    const fallbackName = authUser?.displayName || authUser?.email?.split('@')[0];
+                    if (fallbackName) {
+                        window.gameState.playerName = fallbackName;
+                        if (window.LeaderboardSystem) {
+                            window.LeaderboardSystem.initPlayer(fallbackName, uid);
+                        }
+                        if (window.setLocalPlayerName) window.setLocalPlayerName(fallbackName);
+                        if (window.saveGame) window.saveGame();
+                    } else {
+                        console.log("Logged in but no name found. Showing Name Modal.");
+                        if (window.NameModalSystem) window.NameModalSystem.show();
+                    }
                 }
 
                 console.log("AuthService: Game state restored. Level:", window.gameState.wave, "Items:", window.gameState.inventory.length);
@@ -243,7 +255,18 @@ const AuthService = {
                 if (window.saveGame) window.saveGame();
             } else {
                 console.log("No cloud data found for this user. Treating as new user.");
-                if (window.NameModalSystem) window.NameModalSystem.show();
+                const authUser = firebase.auth().currentUser;
+                const fallbackName = authUser?.displayName || authUser?.email?.split('@')[0];
+                if (fallbackName) {
+                    window.gameState.playerName = fallbackName;
+                    if (window.LeaderboardSystem) {
+                        window.LeaderboardSystem.initPlayer(fallbackName, uid);
+                    }
+                    if (window.setLocalPlayerName) window.setLocalPlayerName(fallbackName);
+                    if (window.saveGame) window.saveGame();
+                } else {
+                    if (window.NameModalSystem) window.NameModalSystem.show();
+                }
             }
         } catch (error) {
             console.error("Cloud load error:", error);

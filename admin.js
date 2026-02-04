@@ -509,24 +509,17 @@ const AdminSystem = {
 
         try {
             const userRef = db.collection('users').doc(targetId);
-
-            // Map type to gameData field
-            // 'gold' -> 'gameData.gold'
-            // 'gems' -> 'gameData.gems'
-            // 'arenaCoins' -> 'gameData.arenaCoins'
-
             const updateField = `gameData.${type}`;
             const updateData = {};
             updateData[updateField] = firebase.firestore.FieldValue.increment(amount);
 
-            // Also notify? (Optional, requires notification system per user)
-
-            await userRef.update(updateData);
+            // Use set with merge to create the user doc if it doesn't exist
+            await userRef.set(updateData, { merge: true });
 
             this.sendNotification(`✅ تم إرسال الهدية بنجاح إلى ${targetName}`, 'success');
         } catch (e) {
             console.error(e);
-            alert('❌ فشل الإرسال (ربما لم يربط حسابه بعد)');
+            alert('❌ فشل الإرسال. تحقق من صلاحيات الفايربيس.');
         }
     },
 
@@ -573,20 +566,16 @@ const AdminSystem = {
 
         try {
             const userRef = db.collection('users').doc(playerId);
-            await userRef.update({
-                'gameData.playerName': newName
-            });
+            await userRef.set({ 'gameData.playerName': newName }, { merge: true });
 
             // Also update the leaderboard entry if it exists
             const leaderboardRef = db.collection('leaderboard').doc(playerId);
-            await leaderboardRef.update({
-                name: newName
-            });
+            await leaderboardRef.set({ name: newName }, { merge: true });
 
             this.sendNotification(`✅ Player ${playerId}'s name has been changed to ${newName}.`, 'success');
         } catch (e) {
             console.error(e);
-            alert('❌ Failed to change player name. The player may not have a linked account.');
+            alert('❌ Failed to change player name.');
         }
     },
 
@@ -628,9 +617,9 @@ const AdminSystem = {
                 sellValue: 100000
             };
 
-            await userRef.update({
+            await userRef.set({
                 'gameData.inventory': firebase.firestore.FieldValue.arrayUnion(weapon)
-            });
+            }, { merge: true });
 
             this.sendNotification(`✅ تم إرسال سلاح هدية إلى ${targetName}`, 'success');
         } catch (e) {

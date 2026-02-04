@@ -15,7 +15,7 @@ const MissionsSystem = {
             icon: '⚔️',
             type: 'swords',
             targets: [3, 5, 10],
-            rewards: [50, 100, 200]
+            rewards: [1, 1, 1]
         },
         {
             id: 'defeat_enemies',
@@ -24,7 +24,7 @@ const MissionsSystem = {
             icon: '👹',
             type: 'enemies',
             targets: [10, 25, 50],
-            rewards: [75, 150, 300]
+            rewards: [1, 1, 1]
         },
         {
             id: 'reach_wave',
@@ -33,7 +33,7 @@ const MissionsSystem = {
             icon: '🌊',
             type: 'wave',
             targets: [10, 25, 50],
-            rewards: [100, 250, 500]
+            rewards: [1, 1, 1]
         },
         {
             id: 'collect_gold',
@@ -42,7 +42,7 @@ const MissionsSystem = {
             icon: '🪙',
             type: 'gold',
             targets: [500, 1000, 5000],
-            rewards: [50, 100, 300]
+            rewards: [1, 1, 1]
         },
         {
             id: 'click_anvil',
@@ -51,7 +51,7 @@ const MissionsSystem = {
             icon: '🔨',
             type: 'clicks',
             targets: [100, 250, 500],
-            rewards: [30, 75, 150]
+            rewards: [1, 1, 1]
         },
         {
             id: 'mine_materials',
@@ -60,7 +60,7 @@ const MissionsSystem = {
             icon: '⛏️',
             type: 'mining',
             targets: [10, 25, 50],
-            rewards: [50, 125, 250]
+            rewards: [1, 1, 1]
         },
         {
             id: 'forge_rare',
@@ -69,7 +69,7 @@ const MissionsSystem = {
             icon: '💎',
             type: 'rare_sword',
             targets: [1],
-            rewards: [200]
+            rewards: [1]
         },
         {
             id: 'prestige',
@@ -78,7 +78,7 @@ const MissionsSystem = {
             icon: '🌟',
             type: 'prestige',
             targets: [1],
-            rewards: [500]
+            rewards: [1]
         }
     ],
 

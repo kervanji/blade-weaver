@@ -14,6 +14,8 @@ var gameState = {
     arenaCoins: 0, // عملات الساحة
     arenaRankPoints: 0, // نقاط تصنيف الساحة
     allianceId: null, // معرف التحالف
+    allianceUpgrades: {}, // نسخ محلية لتطويرات التحالف
+    allianceGemUpgrades: {}, // تطويرات الجواهر للتحالف
 
     // Click power
     clickPower: 1,
@@ -344,6 +346,26 @@ function getGeometricBonus(level) {
     return bonus;
 }
 
+function getAllianceUpgradeLevel(type) {
+    return (gameState.allianceUpgrades && gameState.allianceUpgrades[type]) ? gameState.allianceUpgrades[type] : 0;
+}
+
+function getAllianceBonus(type) {
+    if (!window.AllianceConfig || !AllianceConfig.UPGRADES || !AllianceConfig.UPGRADES[type]) return 0;
+    const level = getAllianceUpgradeLevel(type);
+    return level * AllianceConfig.UPGRADES[type].bonusPerLevel;
+}
+
+function getAllianceGemUpgradeLevel(type) {
+    return (gameState.allianceGemUpgrades && gameState.allianceGemUpgrades[type]) ? gameState.allianceGemUpgrades[type] : 0;
+}
+
+function getAllianceGemBonus(type) {
+    if (!window.AllianceConfig || !AllianceConfig.GEM_UPGRADES || !AllianceConfig.GEM_UPGRADES[type]) return 0;
+    const level = getAllianceGemUpgradeLevel(type);
+    return level * AllianceConfig.GEM_UPGRADES[type].bonusPerLevel;
+}
+
 function getSharpenerBonusPercent() {
     return Math.min(100, (gameState.upgrades.sharpener || 0) * 10);
 }
@@ -387,6 +409,9 @@ function handleAnvilClick() {
     if (gameState.activeCharacter === 'smith') {
         pointsGained *= getCharacterBuff('smith');
     }
+
+    // Alliance XP Library: bonus smithing points
+    pointsGained *= (1 + getAllianceBonus('xp_library'));
 
     gameState.smithingPoints += pointsGained;
     gameState.stats.totalClicks++;
@@ -498,8 +523,10 @@ function craftItem() {
         icon: typeInfo.icon
     };
 
+    const forgeCoreBonus = 1 + getAllianceGemBonus('forge_core');
+
     if (category === 'weapon') {
-        const baseDamage = random(5, 15) * rarityConfig.multiplier * spiritBonus * sharpenerBonus * tierConfig.damageBonus;
+        const baseDamage = random(5, 15) * rarityConfig.multiplier * spiritBonus * sharpenerBonus * tierConfig.damageBonus * forgeCoreBonus;
         const baseSpeed = randomFloat(0.8, 1.5) * tierConfig.speedBonus;
         const baseCrit = random(5, 15) + tierConfig.critBonus + (rarity === 'mythic' ? 20 : rarity === 'legendary' ? 10 : 0);
 
@@ -509,7 +536,7 @@ function craftItem() {
         item.critChance = Math.min(baseCrit, 80);
     } else {
         // Armor stats: HP and Defense
-        const baseHp = random(20, 100) * rarityConfig.multiplier * tierConfig.damageBonus; // reusable multiplier
+        const baseHp = random(20, 100) * rarityConfig.multiplier * tierConfig.damageBonus * forgeCoreBonus; // reusable multiplier
         const baseDef = random(1, 10) * rarityConfig.multiplier;
 
         item.name = generateItemName(rarity, selectedCraftTier, typeInfo.name);
@@ -602,7 +629,8 @@ function craftLuckSword() {
     const spiritBonus = 1 + gameState.swordSpirit;
     const sharpenerBonus = 1 + (getSharpenerBonusPercent() / 100);
 
-    const baseDamage = random(3, 12) * rarityConfig.multiplier * spiritBonus * sharpenerBonus;
+    const forgeCoreBonus = 1 + getAllianceGemBonus('forge_core');
+    const baseDamage = random(3, 12) * rarityConfig.multiplier * spiritBonus * sharpenerBonus * forgeCoreBonus;
     const baseSpeed = randomFloat(0.7, 1.3);
     const baseCrit = random(2, 10) + (rarity === 'mythic' ? 15 : rarity === 'legendary' ? 8 : 0);
 
@@ -634,7 +662,8 @@ function determineRarity(isLuckCraft = false) {
         const pityCount = gameState.pityCounter || 0;
         pityBonus = Math.min(30, pityCount * 2);
     }
-    roll = Math.min(99.99, roll + furnaceBonus + pityBonus);
+    const rareForgeBonus = isLuckCraft ? 0 : (getAllianceGemBonus('rare_forge') * 100);
+    roll = Math.min(99.99, roll + furnaceBonus + pityBonus + rareForgeBonus);
 
     // Adjustment: Use luck character buff
     let luckMultiplier = 1;
@@ -664,22 +693,23 @@ function handleRockClick() {
     }
 
     const spiritBonus = 1 + gameState.swordSpirit;
-    const pointsGained = Math.floor(miningPower * 1.2 * spiritBonus);
+    let pointsGained = Math.floor(miningPower * 2.5 * spiritBonus);
+    pointsGained = Math.floor(pointsGained * (1 + getAllianceBonus('xp_library')));
 
     gameState.smithingPoints += pointsGained;
 
     // Updated Mining logic: Chance for all materials with rarity
-    const dropChance = Math.min(0.45, 0.12 + (miningPower * 0.008));
+    const dropChance = Math.min(0.65, 0.2 + (miningPower * 0.02));
     if (Math.random() < dropChance) {
         const roll = Math.random() * 100;
         let type = 'iron';
 
         // Rarity chances based on pickaxe level
-        const bonus = miningPower * 0.6;
-        if (roll < 2 + bonus * 0.1) type = 'starMetal';
-        else if (roll < 10 + bonus * 0.3) type = 'dragonBone';
-        else if (roll < 30 + bonus * 0.5) type = 'obsidian';
-        else if (roll < 60 + bonus * 0.8) type = 'steel';
+        const bonus = miningPower * 1.2;
+        if (roll < 2 + bonus * 0.2) type = 'starMetal';
+        else if (roll < 10 + bonus * 0.6) type = 'dragonBone';
+        else if (roll < 30 + bonus * 0.9) type = 'obsidian';
+        else if (roll < 60 + bonus * 1.2) type = 'steel';
         else type = 'iron';
 
         const amount = 1;
@@ -843,6 +873,9 @@ function attackEnemy() {
         damage = Math.floor(damage * (1 + getSharpenerBonusPercent() / 100));
     }
 
+    // Alliance War Temple: global damage bonus
+    damage = Math.floor(damage * (1 + getAllianceBonus('war_temple')));
+
     // Berserker Buff: Damage Multiplier
     if (gameState.activeCharacter === 'berserker') {
         damage *= getCharacterBuff('berserker');
@@ -898,6 +931,10 @@ function enemyAttackPlayer() {
     // Mitigate with defense (Simple mitigation: Damage - Defense)
     const mitigation = defense;
     let actualDmg = Math.max(Math.ceil(enemyDmg * 0.05), enemyDmg - mitigation);
+    const guardianBonus = getAllianceBonus('guardian_statue');
+    if (guardianBonus > 0) {
+        actualDmg = Math.max(1, Math.ceil(actualDmg * (1 - guardianBonus)));
+    }
 
     // Apply damage
     gameState.hp = Math.max(0, gameState.hp - actualDmg);
@@ -1040,6 +1077,7 @@ function defeatEnemy() {
     if (gameState.activeCharacter === 'king') {
         goldMultiplier = getCharacterBuff('king');
     }
+    goldMultiplier *= (1 + getAllianceBonus('gold_shrine'));
 
     // Calculate loot
     const goldReward = Math.floor(10 * gameState.wave * (1 + Math.random() * 0.5) * goldMultiplier);
@@ -1177,6 +1215,10 @@ function updatePrestigeAvailability() {
         spiritsGained = Math.floor(spiritsGained * getCharacterBuff('wise'));
     }
 
+    const spiritBonus = getAllianceGemBonus('spirit_well');
+    if (spiritBonus > 0) {
+        spiritsGained = Math.floor(spiritsGained * (1 + spiritBonus));
+    }
     DOM.gainedSpirits.textContent = spiritsGained;
 }
 
@@ -1189,6 +1231,10 @@ function doPrestige() {
     // Wise Character Buff: Spirit bonus
     if (gameState.activeCharacter === 'wise') {
         spiritsGained = Math.floor(spiritsGained * getCharacterBuff('wise'));
+    }
+    const spiritBonus = getAllianceGemBonus('spirit_well');
+    if (spiritBonus > 0) {
+        spiritsGained = Math.floor(spiritsGained * (1 + spiritBonus));
     }
 
     gameState.swordSpirit += spiritsGained;
@@ -1972,6 +2018,8 @@ function loadGame() {
         if (!gameState.settings) gameState.settings = { notificationsEnabled: false, autoSellCommon: false };
         gameState.settings.notificationsEnabled = false;
         if (gameState.settings.autoSellCommon === undefined) gameState.settings.autoSellCommon = false;
+        if (!gameState.allianceUpgrades) gameState.allianceUpgrades = {};
+        if (!gameState.allianceGemUpgrades) gameState.allianceGemUpgrades = {};
 
         recalculatePlayerStats();
     } else {
@@ -2307,7 +2355,7 @@ function updateMissionsUI() {
                 </div>
             </div>
             <div class="mission-reward">
-                <span class="reward-amount">🪙 ${mission.reward}</span>
+                <span class="reward-amount">💎 ${mission.reward}</span>
                 ${mission.claimed ?
                 '<span class="claimed-badge">✓ تم</span>' :
                 mission.completed ?
@@ -2326,8 +2374,8 @@ function updateMissionsUI() {
             const missionId = e.target.dataset.missionId;
             const reward = MissionsSystem.claimReward(missionId);
             if (reward > 0) {
-                gameState.gold += reward;
-                gameState.stats.totalGold += reward;
+                gameState.gems += reward;
+                gameState.stats.totalGems = (gameState.stats.totalGems || 0) + reward;
                 updateUI();
                 updateMissionsUI();
                 saveGame();

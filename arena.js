@@ -4,7 +4,7 @@
  */
 
 const AllianceConfig = {
-    UPGRADE_COST_BASE: 100000,
+    UPGRADE_COST_BASE: 1000000,
     UPGRADE_COST_SCALE: 1.5, // Cost * 1.5 per level
     MAX_LEVEL: 10,
     UPGRADES: {
@@ -12,6 +12,13 @@ const AllianceConfig = {
         war_temple: { name: "معبد الحرب", desc: "زيادة الضرر في الحروب", bonusPerLevel: 0.03, icon: "⚔️" },
         guardian_statue: { name: "تمثال الحارس", desc: "زيادة الدفاع في الحروب", bonusPerLevel: 0.03, icon: "🛡️" },
         xp_library: { name: "مكتبة الخبرة", desc: "زيادة الخبرة المكتسبة", bonusPerLevel: 0.05, icon: "📚" }
+    },
+    GEM_UPGRADE_COST_BASE: 50,
+    GEM_UPGRADE_COST_SCALE: 1.7,
+    GEM_UPGRADES: {
+        forge_core: { name: "قلب الحدادة", desc: "زيادة قوة العتاد المصنوع", bonusPerLevel: 0.04, icon: "💎" },
+        rare_forge: { name: "شرارة الندرة", desc: "زيادة فرصة الندرة", bonusPerLevel: 0.03, icon: "✨" },
+        spirit_well: { name: "بئر الأرواح", desc: "زيادة أرواح الصعود", bonusPerLevel: 0.05, icon: "🕯️" }
     }
 };
 
@@ -594,13 +601,22 @@ const ArenaSystem = {
             return;
         }
 
-        if (gameState.gold < 10000) {
-            alert("⚠️ لا تملك ذهب كافٍ (تحتاج 10,000)");
+        if (gameState.gold < 1000000) {
+            alert("⚠️ لا تملك ذهب كافٍ (تحتاج 1,000,000)");
             return;
         }
 
         if (!db) {
             alert("⚠️ نظام التحالفات يتطلب اتصالاً بالإنترنت.");
+            return;
+        }
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول لإنشاء التحالف.");
+            return;
+        }
+        const player = LeaderboardSystem.getPlayer();
+        if (!player) {
+            alert("⚠️ لم يتم العثور على بيانات اللاعب.");
             return;
         }
 
@@ -613,24 +629,30 @@ const ArenaSystem = {
 
             const allianceRef = await db.collection("alliances").add({
                 name: name,
-                leaderId: LeaderboardSystem.getPlayer().id,
-                leaderName: LeaderboardSystem.getPlayer().name,
+                leaderId: player.id,
+                leaderName: player.name,
                 level: 1,
                 funds: 0,
+                gemsFunds: 0,
                 upgrades: {
                     gold_shrine: 0,
                     war_temple: 0,
                     guardian_statue: 0,
                     xp_library: 0
                 },
+                gemUpgrades: {
+                    forge_core: 0,
+                    rare_forge: 0,
+                    spirit_well: 0
+                },
                 stash: [],
                 warHistory: [],
                 memberCount: 1,
-                members: [LeaderboardSystem.getPlayer().id],
+                members: [player.id],
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            gameState.gold -= 10000;
+            gameState.gold -= 1000000;
             gameState.allianceId = allianceRef.id;
 
             saveGame();
@@ -674,6 +696,10 @@ const ArenaSystem = {
                         document.getElementById('alliance-level-val').textContent = data.level;
                         document.getElementById('alliance-members-count').textContent = `${data.memberCount}/20`;
                         document.getElementById('alliance-funds-val').textContent = (data.funds || 0).toLocaleString();
+                        const gemsVal = document.getElementById('alliance-gems-val');
+                        if (gemsVal) gemsVal.textContent = (data.gemsFunds || 0).toLocaleString();
+                        gameState.allianceUpgrades = data.upgrades || {};
+                        gameState.allianceGemUpgrades = data.gemUpgrades || {};
 
                         // War Stats
                         const wins = data.warHistory?.filter(w => w.result === 'win').length || 0;
@@ -690,6 +716,8 @@ const ArenaSystem = {
                                 const currentLevel = data.upgrades?.[key] || 0;
                                 const cost = Math.floor(AllianceConfig.UPGRADE_COST_BASE * Math.pow(AllianceConfig.UPGRADE_COST_SCALE, currentLevel));
                                 const isMax = currentLevel >= AllianceConfig.MAX_LEVEL;
+                                const currentBonus = (currentLevel * config.bonusPerLevel * 100).toFixed(0);
+                                const nextBonus = ((currentLevel + 1) * config.bonusPerLevel * 100).toFixed(0);
 
                                 const div = document.createElement('div');
                                 div.style.background = 'rgba(0,0,0,0.3)';
@@ -699,13 +727,44 @@ const ArenaSystem = {
                                     <div style="font-size: 1.5rem; margin-bottom: 5px;">${config.icon}</div>
                                     <div style="font-weight: bold; font-size: 0.9rem;">${config.name}</div>
                                     <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">مستوى ${currentLevel}/${AllianceConfig.MAX_LEVEL}</div>
+                                    <div style="font-size: 0.75rem; color: #ffd700; margin-bottom: 5px;">الآن: +${currentBonus}%</div>
                                     ${!isMax ? `
                                         <button onclick="ArenaSystem.buyAllianceUpgrade('${key}')" style="width: 100%; padding: 5px; background: #2980b9; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.8rem;">
-                                            تطوير (${cost.toLocaleString()})
+                                            تطوير (${cost.toLocaleString()}) → +${nextBonus}%
                                         </button>
                                     ` : `<div style="color: #2ecc71; font-size: 0.8rem;">الحد الأقصى!</div>`}
                                 `;
                                 upgradesList.appendChild(div);
+                            });
+                        }
+
+                        const gemUpgradesList = document.getElementById('alliance-gem-upgrades-list');
+                        if (gemUpgradesList) {
+                            gemUpgradesList.innerHTML = '';
+                            Object.keys(AllianceConfig.GEM_UPGRADES).forEach(key => {
+                                const config = AllianceConfig.GEM_UPGRADES[key];
+                                const currentLevel = data.gemUpgrades?.[key] || 0;
+                                const cost = Math.floor(AllianceConfig.GEM_UPGRADE_COST_BASE * Math.pow(AllianceConfig.GEM_UPGRADE_COST_SCALE, currentLevel));
+                                const isMax = currentLevel >= AllianceConfig.MAX_LEVEL;
+                                const currentBonus = (currentLevel * config.bonusPerLevel * 100).toFixed(0);
+                                const nextBonus = ((currentLevel + 1) * config.bonusPerLevel * 100).toFixed(0);
+
+                                const div = document.createElement('div');
+                                div.style.background = 'rgba(0,0,0,0.3)';
+                                div.style.padding = '10px';
+                                div.style.borderRadius = '8px';
+                                div.innerHTML = `
+                                    <div style="font-size: 1.5rem; margin-bottom: 5px;">${config.icon}</div>
+                                    <div style="font-weight: bold; font-size: 0.9rem;">${config.name}</div>
+                                    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">مستوى ${currentLevel}/${AllianceConfig.MAX_LEVEL}</div>
+                                    <div style="font-size: 0.75rem; color: #c39bd3; margin-bottom: 5px;">الآن: +${currentBonus}%</div>
+                                    ${!isMax ? `
+                                        <button onclick="ArenaSystem.buyAllianceGemUpgrade('${key}')" style="width: 100%; padding: 5px; background: #8e44ad; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.8rem;">
+                                            تطوير (${cost.toLocaleString()} 💎) → +${nextBonus}%
+                                        </button>
+                                    ` : `<div style="color: #2ecc71; font-size: 0.8rem;">الحد الأقصى!</div>`}
+                                `;
+                                gemUpgradesList.appendChild(div);
                             });
                         }
 
@@ -741,6 +800,8 @@ const ArenaSystem = {
                         const membersList = document.getElementById('alliance-members-list');
                         if (membersList) {
                             membersList.innerHTML = '';
+                            const currentPlayer = LeaderboardSystem.getPlayer();
+                            const isLeader = currentPlayer && data.leaderId === currentPlayer.id;
                             data.members.forEach(memberId => {
                                 // Ideally we fetch names. For now just ID or placeholder if we can't fetch.
                                 // Or we assume leaderboard had them. 
@@ -748,7 +809,11 @@ const ArenaSystem = {
                                 const div = document.createElement('div');
                                 div.style.padding = "5px";
                                 div.style.borderBottom = "1px solid #333";
-                                div.textContent = memberId === data.leaderId ? `👑القائد (${memberId.substr(0, 5)}...)` : `👤 عضو (${memberId.substr(0, 5)}...)`;
+                                const isMemberLeader = memberId === data.leaderId;
+                                div.innerHTML = `
+                                    <span>${isMemberLeader ? '👑القائد' : '👤 عضو'} (${memberId.substr(0, 5)}...)</span>
+                                    ${isLeader && !isMemberLeader ? `<button onclick="ArenaSystem.transferLeadership('${memberId}')" style="margin-inline-start: 8px; padding: 3px 6px; background: #f39c12; border: none; border-radius: 4px; color: #111; font-size: 0.7rem; cursor: pointer;">تحويل القيادة</button>` : ''}
+                                `;
                                 membersList.appendChild(div);
                             });
                         }
@@ -793,6 +858,10 @@ const ArenaSystem = {
             alert("⚠️ أنت بالفعل في تحالف!");
             return;
         }
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول للانضمام لتحالف.");
+            return;
+        }
 
         try {
             const ref = db.collection("alliances").doc(id);
@@ -815,7 +884,7 @@ const ArenaSystem = {
             alert(`🛡️ انضممت إلى "${data.name}"!`);
             this.updateAllianceUI();
         } catch (e) {
-            alert("⚠️ فشل الانضمام.");
+            alert(`⚠️ فشل الانضمام: ${e.message || e}`);
         }
     },
 
@@ -831,6 +900,10 @@ const ArenaSystem = {
         }
 
         if (!gameState.allianceId) return;
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول للتبرع للتحالف.");
+            return;
+        }
 
         try {
             const ref = db.collection("alliances").doc(gameState.allianceId);
@@ -849,8 +922,44 @@ const ArenaSystem = {
         }
     },
 
+    donateGemsToAlliance: async function () {
+        const amount = parseInt(prompt("كم تريد التبرع؟ (الحد الأدنى 10 جواهر)", "10"));
+        if (!amount || amount < 10) return;
+
+        if (gameState.gems < amount) {
+            alert("⚠️ لا تملك جواهر كافية!");
+            return;
+        }
+
+        if (!gameState.allianceId) return;
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول للتبرع بالجواهر.");
+            return;
+        }
+
+        try {
+            const ref = db.collection("alliances").doc(gameState.allianceId);
+            await ref.update({
+                gemsFunds: firebase.firestore.FieldValue.increment(amount)
+            });
+
+            gameState.gems -= amount;
+            saveGame();
+            updateUI();
+            this.updateAllianceUI();
+            alert(`💎 شكراً لتبرعك بـ ${amount} جوهرة للتحالف!`);
+        } catch (e) {
+            console.error(e);
+            alert("فشل التبرع بالجواهر.");
+        }
+    },
+
     buyAllianceUpgrade: async function (type) {
         if (!gameState.allianceId) return;
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول لتطوير التحالف.");
+            return;
+        }
 
         try {
             const ref = db.collection("alliances").doc(gameState.allianceId);
@@ -884,7 +993,87 @@ const ArenaSystem = {
             alert(`🆙 تم تطوير ${AllianceConfig.UPGRADES[type].name} إلى م-${currentLevel + 1}!`);
         } catch (e) {
             console.error(e);
-            alert("فشل التطوير.");
+            alert(`فشل التطوير: ${e.message || e}`);
+        }
+    },
+
+    buyAllianceGemUpgrade: async function (type) {
+        if (!gameState.allianceId) return;
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول لتطوير التحالف بالجواهر.");
+            return;
+        }
+
+        try {
+            const ref = db.collection("alliances").doc(gameState.allianceId);
+            const doc = await ref.get();
+            const data = doc.data();
+
+            if (data.leaderId !== LeaderboardSystem.getPlayer().id) {
+                alert("⚠️ فقط القائد يمكنه تطوير التحالف.");
+                return;
+            }
+
+            const currentLevel = data.gemUpgrades?.[type] || 0;
+            if (currentLevel >= AllianceConfig.MAX_LEVEL) {
+                alert("⚠️ وصل هذا التطوير للحد الأقصى!");
+                return;
+            }
+
+            const cost = Math.floor(AllianceConfig.GEM_UPGRADE_COST_BASE * Math.pow(AllianceConfig.GEM_UPGRADE_COST_SCALE, currentLevel));
+
+            if ((data.gemsFunds || 0) < cost) {
+                alert(`⚠️ رصيد الجواهر غير كافٍ! (تحتاج ${cost} جوهرة)`);
+                return;
+            }
+
+            const updateData = {};
+            updateData[`gemUpgrades.${type}`] = firebase.firestore.FieldValue.increment(1);
+            updateData['gemsFunds'] = firebase.firestore.FieldValue.increment(-cost);
+
+            await ref.update(updateData);
+            this.updateAllianceUI();
+            alert(`🆙 تم تطوير ${AllianceConfig.GEM_UPGRADES[type].name} إلى م-${currentLevel + 1}!`);
+        } catch (e) {
+            console.error(e);
+            alert(`فشل التطوير: ${e.message || e}`);
+        }
+    },
+
+    transferLeadership: async function (memberId) {
+        if (!gameState.allianceId) return;
+        if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
+            alert("⚠️ يجب تسجيل الدخول لتحويل القيادة.");
+            return;
+        }
+
+        if (!confirm("هل تريد تحويل القيادة لهذا العضو؟")) return;
+
+        try {
+            const ref = db.collection("alliances").doc(gameState.allianceId);
+            const doc = await ref.get();
+            const data = doc.data();
+
+            const currentPlayer = LeaderboardSystem.getPlayer();
+            if (!currentPlayer || data.leaderId !== currentPlayer.id) {
+                alert("⚠️ فقط القائد يمكنه تحويل القيادة.");
+                return;
+            }
+
+            if (!data.members.includes(memberId)) {
+                alert("⚠️ العضو غير موجود في التحالف.");
+                return;
+            }
+
+            await ref.update({
+                leaderId: memberId
+            });
+
+            alert("✅ تم تحويل القيادة بنجاح.");
+            this.updateAllianceUI();
+        } catch (e) {
+            console.error(e);
+            alert(`فشل تحويل القيادة: ${e.message || e}`);
         }
     },
 
