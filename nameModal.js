@@ -251,16 +251,16 @@ const NameModalSystem = {
         this.input.style.borderColor = '#e74c3c';
     },
 
-    show: function () {
+    show: function (isChangeMode = false) {
         // Re-initialize to ensure elements are found
         if (!this.init()) {
             console.error('NameModalSystem: Cannot show modal - init failed');
             return;
         }
 
-        // Check if player already exists
+        // Check if player already exists AND NOT in change mode
         const existingPlayer = window.LeaderboardSystem.getPlayer();
-        if (existingPlayer) {
+        if (existingPlayer && !isChangeMode) {
             console.log('Player already exists:', existingPlayer.name);
             if (window.setLocalPlayerName) {
                 window.setLocalPlayerName(existingPlayer.name);
@@ -277,7 +277,18 @@ const NameModalSystem = {
         this.input.disabled = false;
         this.input.style.borderColor = 'rgba(255,255,255,0.2)';
         this.startBtn.disabled = true;
-        this.startBtn.textContent = 'ابدأ اللعب!';
+        this.startBtn.textContent = isChangeMode ? 'تغيير الاسم' : 'ابدأ اللعب!';
+
+        // Update Header/Text for Change Mode
+        if (isChangeMode) {
+            document.querySelector('.name-modal-content h3').textContent = '✏️ تغيير اسم اللاعب';
+            document.querySelector('.name-prompt').textContent = 'أدخل اسمك الجديد:';
+            // Hide link button just in case
+            if (this.linkBtn) this.linkBtn.style.display = 'none';
+        } else {
+            document.querySelector('.name-modal-content h3').textContent = '⚔️ مرحباً بك في Blade Weaver!';
+            document.querySelector('.name-prompt').textContent = 'أدخل اسمك ليظهر في لوحة الصدارة';
+        }
 
         // Reset error message
         const errorMsg = document.getElementById('name-error-message');

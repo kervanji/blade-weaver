@@ -7,7 +7,8 @@ const AdSystem = {
         daily: 30 * 60 * 1000,       // 30 minutes
         upgrade: 60 * 60 * 1000,     // 1 hour
         mega_chest: 120 * 60 * 1000, // 2 hours
-        arena_coins: 15 * 60 * 1000  // 15 minutes
+        arena_coins: 15 * 60 * 1000,  // 15 minutes
+        change_name: 0               // No cooldown, immediate payment
     },
 
     init: function () {
@@ -77,8 +78,8 @@ const AdSystem = {
             // Fallback for when overlay doesn't exist, still simulate
             console.log("Ad overlay not found, using fallback simulation.");
             setTimeout(() => {
-                 const adWatchedSuccessfully = Math.random() > 0.1; // 90% success rate
-                 if (adWatchedSuccessfully) {
+                const adWatchedSuccessfully = Math.random() > 0.1; // 90% success rate
+                if (adWatchedSuccessfully) {
                     this.giveReward(type);
                 } else {
                     alert('⚠️ فشلت مشاهدة الإعلان. يرجى المحاولة مرة أخرى.');
@@ -125,9 +126,15 @@ const AdSystem = {
             }
         }
         else if (type === 'arena_coins') {
-            const amount = 50;
             gameState.arenaCoins += amount;
             message = `⚔️ حصلت على ${amount} من عملات الساحة!`;
+        }
+        else if (type === 'change_name') {
+            // Reward is opening the modal
+            if (window.NameModalSystem) {
+                window.NameModalSystem.show(true);
+            }
+            return; // No alert needed here, modal opens
         }
 
         saveGame();

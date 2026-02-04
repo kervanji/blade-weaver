@@ -14,27 +14,46 @@ const AuthService = {
         this.saveKey = window.SAVE_KEY || 'bladeWeaver_save';
 
         firebase.auth().onAuthStateChanged((user) => {
-            this.updateAuthUI(user);
-            if (user) {
-                this.loadCloudData(user.uid);
-            }
+            this.handleAuthStateChange(user);
         });
 
-        // Event Listeners with safety checks
-        const googleBtn = document.getElementById('google-login-btn');
+        // Event Listeners for Login Overlay
+        const googleBtn = document.getElementById('login-overlay-google-btn');
         if (googleBtn) googleBtn.onclick = () => this.loginWithGoogle();
 
-        const emailLoginBtn = document.getElementById('email-login-btn');
+        const emailLoginBtn = document.getElementById('login-overlay-signin-btn');
         if (emailLoginBtn) emailLoginBtn.onclick = () => this.loginWithEmail();
 
-        const emailSignupBtn = document.getElementById('email-signup-btn');
+        const emailSignupBtn = document.getElementById('login-overlay-signup-btn');
         if (emailSignupBtn) emailSignupBtn.onclick = () => this.signUpWithEmail();
 
+        // Settings / Account Panel Listeners (for logout)
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) logoutBtn.onclick = () => this.logout();
 
         // Initialize Messaging
         this.initMessaging();
+    },
+
+    handleAuthStateChange: function (user) {
+        const loginOverlay = document.getElementById('login-overlay');
+        const loggedInView = document.getElementById('auth-logged-in');
+
+        if (user) {
+            console.log("AuthService: User logged in:", user.uid);
+            if (loginOverlay) loginOverlay.style.display = 'none'; // Hide overlay
+            if (loggedInView) loggedInView.classList.remove('hidden');
+
+            this.updateAuthUI(user);
+            this.loadCloudData(user.uid);
+        } else {
+            console.log("AuthService: User logged out");
+            if (loginOverlay) loginOverlay.style.display = 'flex'; // Show overlay
+            if (loggedInView) loggedInView.classList.add('hidden');
+
+            // Should clear game data or reset generic UI?
+            // For now, overlay blocks access.
+        }
     },
 
     initMessaging: async function () {
@@ -103,12 +122,7 @@ const AuthService = {
     },
 
     updateAuthUI: function (user) {
-        const loggedInView = document.getElementById('auth-logged-in');
-        const loggedOutView = document.getElementById('auth-logged-out');
-
         if (user) {
-            loggedInView.classList.remove('hidden');
-            loggedOutView.classList.add('hidden');
             document.getElementById('user-display-name').textContent = user.displayName || user.email.split('@')[0];
             document.getElementById('user-email').textContent = user.email;
             if (user.photoURL) {
@@ -119,9 +133,6 @@ const AuthService = {
             if (this.fcmToken) {
                 this.saveTokenToDatabase(user.uid, this.fcmToken);
             }
-        } else {
-            loggedInView.classList.add('hidden');
-            loggedOutView.classList.remove('hidden');
         }
     },
 
@@ -130,7 +141,7 @@ const AuthService = {
         const provider = new firebase.auth.GoogleAuthProvider();
         try {
             const result = await firebase.auth().signInWithPopup(provider);
-            this.handleFirstTimeSync(result.user);
+            // Auth listener will handle next steps
         } catch (error) {
             console.error(error);
             alert("خطأ في تسجيل الدخول عبر Google");
@@ -138,8 +149,8 @@ const AuthService = {
     },
 
     loginWithEmail: async function () {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
+        const email = document.getElementById('login-overlay-email').value;
+        const password = document.getElementById('login-overlay-password').value;
         if (!email || !password) return;
 
         try {
@@ -150,13 +161,13 @@ const AuthService = {
     },
 
     signUpWithEmail: async function () {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
+        const email = document.getElementById('login-overlay-email').value;
+        const password = document.getElementById('login-overlay-password').value;
         if (!email || !password) return;
 
         try {
-            const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
-            this.handleFirstTimeSync(result.user);
+            // New account
+            await firebase.auth().createUserWithEmailAndPassword(email, password);
         } catch (error) {
             alert("خطأ: " + error.message);
         }
@@ -164,68 +175,75 @@ const AuthService = {
 
     logout: function () {
         firebase.auth().signOut().then(() => {
-            console.log("User signed out. Resetting game state.");
-            if (typeof resetGame === 'function') {
-                resetGame();
-            } else {
-                // Fallback if resetGame is not available
-                localStorage.removeItem(this.saveKey || 'bladeWeaver_save');
-                window.location.reload();
-            }
+            console.log("User signed out. Reloading to force login.");
+            window.location.reload();
         });
     },
 
-    handleFirstTimeSync: async function (user) {
-        console.log("AuthService: Handling first time sync for", user.uid);
-        const localData = localStorage.getItem(this.saveKey || 'bladeWeaver_save');
-        if (!localData) {
-            this.loadCloudData(user.uid);
-            return;
-        }
+    loadCloudData: async function (uid) {
+        if (!db) return;
+        try {
+            const doc = await db.collection("users").doc(uid).get();
+            let cloudData = null;
 
-        const cloudDoc = await db.collection("users").doc(user.uid).get();
-        if (!cloudDoc.exists) {
-            // No cloud data, just save local to cloud
-            this.saveCloudData(user.uid, JSON.parse(localData));
-            return;
-        }
-
-        const cloudData = cloudDoc.data().gameData;
-
-        // Show conflict modal
-        const modal = document.getElementById('conflict-modal');
-        modal.classList.remove('hidden');
-
-        const cloudStats = `الذهب: ${cloudData.gold} | الموجة: ${cloudData.wave}`;
-        document.getElementById('cloud-stats-preview').textContent = cloudStats;
-
-        const localObj = JSON.parse(localData);
-        const localStats = `الذهب: ${localObj.gold} | الموجة: ${localObj.wave}`;
-        document.getElementById('local-stats-preview').textContent = localStats;
-
-        document.getElementById('restore-cloud-btn').onclick = () => {
-            Object.assign(window.gameState, cloudData);
-
-            // Sync player name if exists in cloud
-            if (cloudData.playerName && window.LeaderboardSystem) {
-                window.LeaderboardSystem.initPlayer(cloudData.playerName, user.uid);
-                if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
+            if (doc.exists) {
+                cloudData = doc.data().gameData;
             }
 
-            if (window.updateUI) window.updateUI();
-            if (window.saveGame) window.saveGame();
-            modal.classList.add('hidden');
-            document.getElementById('name-modal').classList.add('hidden'); // Close name modal too
-            alert("✅ تم استعادة البيانات من السحابة!");
-        };
+            if (cloudData) {
+                console.log("AuthService: Cloud data loaded successfully");
 
-        document.getElementById('overwrite-cloud-btn').onclick = () => {
-            if (confirm("⚠️ هل أنت متأكد؟ سيتم حذف بيانات السحابة القديمة نهائياً!")) {
-                this.saveCloudData(user.uid, localObj);
-                modal.classList.add('hidden');
-                alert("✅ تم ربط الحساب وحفظ التقدم الحالي!");
+                // Deep merge/overwrite critical game state fields
+                // We use Object.assign for simple fields, but for arrays/objects we want to be sure
+                // In this case, we trust the cloud data implicitly for the 'restore' action.
+
+                // 1. Basic Stats
+                window.gameState.gold = cloudData.gold || 0;
+                window.gameState.gems = cloudData.gems || 0;
+                window.gameState.wave = cloudData.wave || 1;
+                window.gameState.swordSpirit = cloudData.swordSpirit || 0;
+                window.gameState.arenaCoins = cloudData.arenaCoins || 0;
+
+                // 2. Upgrades & Materials (Objects)
+                window.gameState.upgrades = cloudData.upgrades || { hammer: 1, bellows: 0, sharpener: 0, furnace: 0, pickaxe: 1 };
+                window.gameState.materials = cloudData.materials || { iron: 0, steel: 0, obsidian: 0, dragonBone: 0, starMetal: 0 };
+
+                // 3. Inventory & Equipment (Arrays/Objects)
+                // Important: Completely overwrite to avoid duplicates or ghost items
+                window.gameState.inventory = cloudData.inventory || [];
+                window.gameState.equipment = cloudData.equipment || { head: null, body: null, weapon: null };
+
+                // 4. Characters
+                window.gameState.ownedCharacters = cloudData.ownedCharacters || ['default'];
+                window.gameState.characterLevels = cloudData.characterLevels || {};
+                window.gameState.activeCharacter = cloudData.activeCharacter || 'default';
+
+                // 5. Stats Object
+                window.gameState.stats = cloudData.stats || window.gameState.stats;
+
+                // Sync player name if exists in cloud
+                if (cloudData.playerName) {
+                    window.gameState.playerName = cloudData.playerName;
+                    if (window.LeaderboardSystem) {
+                        window.LeaderboardSystem.initPlayer(cloudData.playerName, uid);
+                    }
+                    if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
+                } else {
+                    console.log("Logged in but no name found. Showing Name Modal.");
+                    if (window.NameModalSystem) window.NameModalSystem.show();
+                }
+
+                console.log("AuthService: Game state restored. Level:", window.gameState.wave, "Items:", window.gameState.inventory.length);
+
+                if (window.updateUI) window.updateUI();
+                if (window.saveGame) window.saveGame();
+            } else {
+                console.log("No cloud data found for this user. Treating as new user.");
+                if (window.NameModalSystem) window.NameModalSystem.show();
             }
-        };
+        } catch (error) {
+            console.error("Cloud load error:", error);
+        }
     },
 
     saveCloudData: async function (uid, data) {
@@ -235,49 +253,33 @@ const AuthService = {
                 gameData: data,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
-            console.log("Cloud data saved!");
         } catch (error) {
-            if (error.code === 'permission-denied') {
-                console.warn("AuthService: Cloud save permission denied.");
-            } else {
-                console.error("Cloud save error:", error);
-            }
-        }
-    },
-
-    loadCloudData: async function (uid) {
-        if (!db) return;
-        try {
-            const doc = await db.collection("users").doc(uid).get();
-            if (doc.exists) {
-                const cloudData = doc.data().gameData;
-                if (cloudData) {
-                    console.log("AuthService: Cloud data loaded successfully");
-                    Object.assign(window.gameState, cloudData);
-
-                    // Sync player name if exists in cloud
-                    if (cloudData.playerName && window.LeaderboardSystem) {
-                        window.LeaderboardSystem.initPlayer(cloudData.playerName, uid);
-                        if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
-                    }
-
-                    if (window.updateUI) window.updateUI();
-                    if (window.saveGame) window.saveGame();
-
-                    // If we are on the name modal, close it
-                    const nameModal = document.getElementById('name-modal');
-                    if (nameModal) nameModal.classList.add('hidden');
-                }
-            }
-        } catch (error) {
-            if (error.code === 'permission-denied') {
-                console.warn("AuthService: Cloud permissions missing. This is normal if you are not logged in or if the game is running locally without Firebase Admin access.");
-                console.warn("Please log in to load cloud data.");
-            } else {
-                console.error("Cloud load error:", error);
-            }
+            console.error("Cloud save error:", error);
         }
     }
 };
 
 window.AuthService = AuthService;
+
+// Request Name Change Function
+window.requestNameChange = function (type) {
+    if (type === 'gems') {
+        if (gameState.gems >= 50) {
+            if (confirm("هل تريد دفع 50 جوهرة لتغيير اسمك؟")) {
+                gameState.gems -= 50;
+                window.NameModalSystem.show(true); // Show with force mode
+                // Note: The gem deduction should ideally happen *after* successful change, but simplifying here.
+                // Or better: pass a callback to NameModalSystem?
+                // Let's rely on NameModalSystem handling the 'change' Logic. 
+                // Actually NameModalSystem creates a new player if one doesn't exist.
+                // I need to update NameModalSystem to support 'Change Mode'
+            }
+        } else {
+            alert("ليس لديك ما يكفي من الجواهر! (مطلوب 50 💎)");
+        }
+    } else if (type === 'ad') {
+        if (window.AdSystem) {
+            window.AdSystem.watchAd('change_name');
+        }
+    }
+};

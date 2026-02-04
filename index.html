@@ -22,6 +22,38 @@
 
 <body>
     <div class="game-container">
+        <!-- Login Overlay -->
+        <div id="login-overlay"
+            style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;">
+            <div class="auth-card"
+                style="max-width: 400px; width: 90%; padding: 30px; border: 1px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.2);">
+                <div class="logo" style="margin-bottom: 30px; transform: scale(1.2);">
+                    <span class="sword-icon">⚔️</span>
+                    <h1 data-i18n="gameTitle">Blade Weaver</h1>
+                </div>
+
+                <h4 style="margin-bottom: 20px; color: #fff;">تسجيل الدخول مطلوب</h4>
+                <p style="margin-bottom: 20px; color: #aaa;">يجب تسجيل الدخول لحفظ تقدمك واللعب.</p>
+
+                <div class="auth-actions">
+                    <button class="auth-btn google-btn" id="login-overlay-google-btn">
+                        <span class="icon">🔍</span> الدخول عبر Google
+                    </button>
+                    <div class="auth-divider">أو</div>
+                    <div class="email-auth">
+                        <input type="email" id="login-overlay-email" placeholder="البريد الإلكتروني"
+                            style="margin-bottom: 10px; width: 100%; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <input type="password" id="login-overlay-password" placeholder="كلمة المرور"
+                            style="margin-bottom: 15px; width: 100%; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <div class="email-btns" style="display: flex; gap: 10px;">
+                            <button class="auth-btn" id="login-overlay-signin-btn" style="flex: 1;">دخول</button>
+                            <button class="auth-btn outline" id="login-overlay-signup-btn" style="flex: 1;">حساب
+                                جديد</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- PWA Service Worker Registration -->
         <!-- PWA Service Worker Registration & Install Logic -->
         <script>
@@ -257,13 +289,13 @@
                     </div>
                 </div>
 
-                <!-- Battle Ad Unit -->
-                <div class="ad-container ad-banner-horizontal">
-                    <!-- TODO: REPLACE "1234567890" WITH YOUR REAL NUMERIC AD SLOT ID FROM GOOGLE ADSENSE -->
+                <!-- Battle Ad Unit (TEMPORARILY DISABLED: INVALID SLOT ID) -->
+                <!-- <div class="ad-container ad-banner-horizontal">
+                     
                     <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8351069181719169"
                         data-ad-slot="1234567890" data-ad-format="auto" data-full-width-responsive="true"></ins>
                     <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-                </div>
+                </div> -->
 
                 <div class="materials-display">
                     <div class="material">
@@ -837,27 +869,8 @@
                     <p>قم بربط حسابك لحفظ تقدمك واللعب من أي جهاز آخر.</p>
                 </div>
 
-                <div id="auth-logged-out">
-                    <div class="auth-card">
-                        <div class="auth-icon">🔐</div>
-                        <h4>أنت تلعب كضيف الآن</h4>
-                        <p>بياناتك محفوظة محلياً فقط. في حال مسح بيانات المتصفح ستفقد تقدمك!</p>
-
-                        <div class="auth-actions">
-                            <button class="auth-btn google-btn" id="google-login-btn">
-                                <span class="icon">🔍</span> الربط بحساب Google
-                            </button>
-                            <div class="auth-divider">أو</div>
-                            <div class="email-auth">
-                                <input type="email" id="auth-email" placeholder="البريد الإلكتروني">
-                                <input type="password" id="auth-password" placeholder="كلمة المرور">
-                                <div class="email-btns">
-                                    <button class="auth-btn" id="email-login-btn">تسجيل دخول</button>
-                                    <button class="auth-btn outline" id="email-signup-btn">إنشاء حساب جديد</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div id="auth-logged-out" class="hidden">
+                    <!-- Moving content to login-overlay -->
                 </div>
 
                 <div id="auth-logged-in" class="hidden">
@@ -871,6 +884,22 @@
                             <span class="status-icon">✅</span> تم المزامنة سحابياً
                         </div>
                         <button class="logout-btn" id="logout-btn" data-i18n="logout">تسجيل الخروج</button>
+                    </div>
+
+                    <!-- Change Name Section -->
+                    <div class="admin-section"
+                        style="margin-top: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px;">
+                        <h4 style="color: #ffd700; margin-bottom: 12px;">✏️ تغيير الاسم</h4>
+                        <div style="display: flex; gap: 10px; flex-direction: column;">
+                            <p style="font-size: 0.9rem; color: #aaa;">يمكنك تغيير اسمك مقابل 50 جوهرة أو مشاهدة إعلان.
+                            </p>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="window.requestNameChange('gems')" class="auth-btn"
+                                    style="background: #9b59b6; flex: 1;">💎 50</button>
+                                <button onclick="window.requestNameChange('ad')" class="auth-btn"
+                                    style="background: #e67e22; flex: 1;">📺 إعلان (30ث)</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -957,7 +986,7 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="modal-btn auth-btn google-btn" id="start-link-btn"
+                <button class="modal-btn auth-btn google-btn hidden" id="start-link-btn"
                     style="margin-bottom: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
                     <span class="icon">🔗</span> ربط الحساب الآن (اختياري)
                 </button>

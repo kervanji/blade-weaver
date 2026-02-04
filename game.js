@@ -179,8 +179,8 @@ const ENEMIES = [
 const UPGRADE_COSTS = {
     hammer: { base: 15, multiplier: 1.4 },
     bellows: { base: 50, multiplier: 1.8 },
-    sharpener: { base: 100, multiplier: 1.6 },
-    furnace: { base: 200, multiplier: 2.1 },
+    sharpener: { base: 75, multiplier: 1.6 }, // Reduced from 100
+    furnace: { base: 150, multiplier: 2.1 },  // Reduced from 200
     pickaxe: { base: 75, multiplier: 1.5 }
 };
 
@@ -323,6 +323,13 @@ function getUpgradeCost(type) {
     return Math.floor(config.base * Math.pow(config.multiplier, gameState.upgrades[type]));
 }
 
+function getGeometricBonus(level) {
+    if (level <= 0) return 0;
+    let bonus = Math.pow(2, level); // 2, 4, 8, 16...
+    if (bonus > 100) bonus = 100;
+    return bonus;
+}
+
 function recalculatePlayerStats() {
     let baseHp = 100;
     let baseDef = 0;
@@ -452,7 +459,7 @@ function craftItem() {
 
     // Calculate base stats
     const spiritBonus = 1 + gameState.swordSpirit;
-    const sharpenerBonus = 1 + (gameState.upgrades.sharpener * 0.1);
+    const sharpenerBonus = 1 + (getGeometricBonus(gameState.upgrades.sharpener) / 100);
 
     let item = {
         id: Date.now(),
@@ -507,11 +514,12 @@ function generateItemName(rarity, tier, baseTypeName) {
 }
 
 function determineRarity() {
-    const furnaceBonus = gameState.upgrades.furnace * 5; // +5% rare chance per level
+    const furnaceBonus = getGeometricBonus(gameState.upgrades.furnace); // Ends at 100%
     let roll = Math.random() * 100;
 
     // Adjust roll for furnace bonus (shifts distribution toward rare)
-    roll = Math.max(0, roll - furnaceBonus);
+    // ADDING the bonus pushes the roll higher (towards Rare/Epic/Mythic)
+    roll = Math.min(99.99, roll + furnaceBonus);
 
     let cumulative = 0;
     for (const [key, config] of Object.entries(RARITY)) {
@@ -533,40 +541,10 @@ function generateSwordName(rarity, tier = 'basic') {
 }
 
 // Utility: Show Toast Notification
+// Utility: Show Toast Notification (Disabled as per request)
 function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'success' ? '#2ecc71' : type === 'warning' ? '#e67e22' : type === 'error' ? '#e74c3c' : type === 'gem' ? '#9b59b6' : '#3498db'};
-        color: white;
-        padding: 12px 24px;
-        border-radius: 50px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 9999;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        opacity: 0;
-        pointer-events: none;
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    // Animate in
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-        toast.style.bottom = '100px';
-    });
-
-    // Remove after 3 seconds
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.bottom = '80px';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    // console.log("Toast suppressed:", message);
+    return;
 }
 
 window.sellAllUnused = function () {
@@ -580,6 +558,7 @@ window.sellAllUnused = function () {
 
     let totalValue = unequippedItems.reduce((sum, item) => sum + (item.sellValue || 0), 0);
 
+    // Updated Confirm Message
     if (confirm(`هل أنت متأكد من بيع ${unequippedItems.length} عنصر مقابل ${formatNumber(totalValue)} ذهب؟`)) {
         gameState.inventory = gameState.inventory.filter(item => equippedIds.includes(item.id));
         gameState.gold += totalValue;
@@ -610,7 +589,7 @@ function craftLuckSword() {
     const rarityConfig = RARITY[rarity];
 
     const spiritBonus = 1 + gameState.swordSpirit;
-    const sharpenerBonus = 1 + (gameState.upgrades.sharpener * 0.1);
+    const sharpenerBonus = 1 + (getGeometricBonus(gameState.upgrades.sharpener) / 100);
 
     const baseDamage = random(3, 12) * rarityConfig.multiplier * spiritBonus * sharpenerBonus;
     const baseSpeed = randomFloat(0.7, 1.3);
@@ -635,7 +614,7 @@ function craftLuckSword() {
 
 function determineRarity(isLuckCraft = false) {
     const table = isLuckCraft ? LUCK_RARITY : RARITY;
-    const furnaceBonus = isLuckCraft ? 0 : (gameState.upgrades.furnace * 5);
+    const furnaceBonus = isLuckCraft ? 0 : getGeometricBonus(gameState.upgrades.furnace);
     let roll = Math.random() * 100;
 
     roll = Math.max(0, roll - furnaceBonus);
@@ -1122,6 +1101,12 @@ function showLoot(gold, material) {
 // UPGRADE SYSTEM
 // =====================================================
 function buyUpgrade(type) {
+    // Check max level for sharpener and furnace
+    if ((type === 'sharpener' || type === 'furnace') && gameState.upgrades[type] >= 7) {
+        showToast("⚠️ وصل هذا التطوير إلى أقصى مستوى (100%)", "warning");
+        return;
+    }
+
     const cost = getUpgradeCost(type);
     if (gameState.gold < cost) return;
 
@@ -1549,6 +1534,25 @@ function updateInventoryUI() {
         ? gameState.inventory
         : gameState.inventory.filter(item => item.category === currentInventoryFilter);
 
+    // Check if item is equipped in any slot
+    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
+
+    // Sort items: Equipped first, then by power (Damage/Defense) descending
+    filteredInventory.sort((a, b) => {
+        const isEquippedA = equippedIds.includes(a.id);
+        const isEquippedB = equippedIds.includes(b.id);
+        if (isEquippedA && !isEquippedB) return -1;
+        if (!isEquippedA && isEquippedB) return 1;
+
+        // Calculate power score for sorting
+        const getPower = (item) => {
+            if (item.category === 'weapon') return item.damage || 0;
+            return (item.defense || 0) + (item.hp || 0); // For armor
+        };
+
+        return getPower(b) - getPower(a);
+    });
+
     if (filteredInventory.length === 0) {
         let emptyMsg = "الحقيبة فارغة";
         if (currentInventoryFilter !== 'all') {
@@ -1556,40 +1560,47 @@ function updateInventoryUI() {
             emptyMsg = `لا توجد ${names[currentInventoryFilter]} في حقيبتك`;
         }
 
-        DOM.inventoryGrid.innerHTML = `
-            <div class="empty-inventory" style="
-                text-align: center;
-                padding: 60px 20px;
-                background: linear-gradient(135deg, rgba(255,215,0,0.05), rgba(255,215,0,0.15));
-                border: 2px dashed rgba(255,215,0,0.3);
-                border-radius: 15px;
-                color: #ffd700;
-                font-size: 1.1rem;
-            ">
-                <div style="font-size: 4rem; margin-bottom: 15px;">📦</div>
-                <div style="font-weight: bold; margin-bottom: 8px;">${emptyMsg}</div>
-                <div style="font-size: 0.9rem; color: #aaa;">اصنع معداتك الأولى لتبدأ مغامرتك!</div>
-            </div>
+        // We still want to show controls even if empty, so user can switch filter
+        // But the original code replaced specific content. 
+        // Let's rebuild the grid with controls + empty message
+        DOM.inventoryGrid.innerHTML = '';
+
+        // Add Controls
+        const controls = createInventoryControls();
+        controls.style.gridColumn = "1 / -1";
+        controls.style.width = "100%";
+        DOM.inventoryGrid.appendChild(controls);
+
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-inventory';
+        emptyDiv.style.gridColumn = "1 / -1";
+        emptyDiv.style.textAlign = "center";
+        emptyDiv.style.padding = "60px 20px";
+        emptyDiv.style.background = "linear-gradient(135deg, rgba(255,215,0,0.05), rgba(255,215,0,0.15))";
+        emptyDiv.style.border = "2px dashed rgba(255,215,0,0.3)";
+        emptyDiv.style.borderRadius = "15px";
+        emptyDiv.style.color = "#ffd700";
+
+        emptyDiv.innerHTML = `
+            <div style="font-size: 4rem; margin-bottom: 15px;">📦</div>
+            <div style="font-weight: bold; margin-bottom: 8px;">${emptyMsg}</div>
+            <div style="font-size: 0.9rem; color: #aaa;">اصنع معداتك الأولى لتبدأ مغامرتك!</div>
         `;
+        DOM.inventoryGrid.appendChild(emptyDiv);
         return;
     }
 
     DOM.inventoryGrid.innerHTML = '';
 
-    // Check if item is equipped in any slot
-    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
+    // Add Controls
+    const controls = createInventoryControls();
+    controls.style.gridColumn = "1 / -1";
+    controls.style.width = "100%";
+    DOM.inventoryGrid.appendChild(controls);
 
     filteredInventory.forEach(item => {
         const isEquipped = equippedIds.includes(item.id);
         const rarityConfig = RARITY[item.rarity];
-
-        // Get category display name
-        const categoryNames = {
-            weapon: 'سلاح',
-            body: 'درع',
-            head: 'خوذة'
-        };
-        const categoryName = categoryNames[item.category] || 'معدات';
 
         const card = document.createElement('div');
         card.className = `inventory-card ${item.rarity}`;
@@ -1604,7 +1615,7 @@ function updateInventoryUI() {
         };
 
         card.style.cssText = `
-            background: ${gradients[item.rarity]};
+            background: ${gradients[item.rarity] || gradients.common};
             border: 2px solid ${rarityConfig.color};
             border-radius: 12px;
             padding: 15px;
@@ -1612,6 +1623,9 @@ function updateInventoryUI() {
             transition: all 0.3s ease;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         `;
 
         // Hover effect
@@ -1624,150 +1638,153 @@ function updateInventoryUI() {
             card.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
         };
 
+        const categoryNames = { weapon: 'سلاح', body: 'درع', head: 'خوذة' };
+        const tierNames = { basic: 'أساسي', iron: 'حديدي', steel: 'فولاذي', obsidian: 'سبجي', dragon: 'تنيني', star: 'نجمي' };
+
         let statsHtml = '';
         if (item.category === 'weapon') {
             statsHtml = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;">
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الضرر</div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">⚔️ ${formatNumber(item.damage)}</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 5px 0;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #e74c3c;">⚔️ ${formatNumber(item.damage)}</span>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">السرعة</div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">⚡ ${item.attackSpeed}</div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #3b82f6;">⚡ ${item.attackSpeed}</span>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center; grid-column: span 2;">
-                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الضربة الحرجة</div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: #f59e0b;">💥 ${item.critChance}%</div>
-                    </div>
-                </div>
-            `;
+                </div>`;
         } else {
             statsHtml = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0;">
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الصحة</div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: #e74c3c;">❤️ ${formatNumber(item.hp)}</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 5px 0;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #e74c3c;">❤️ ${formatNumber(item.hp)}</span>
                     </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 3px;">الدفاع</div>
-                        <div style="font-size: 1.1rem; font-weight: bold; color: #3b82f6;">🛡️ ${item.defense}</div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 5px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.8rem; color: #3b82f6;">🛡️ ${item.defense}</span>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
 
-        const tierNames = {
-            basic: 'أساسي',
-            iron: 'حديدي',
-            steel: 'فولاذي',
-            obsidian: 'سبجي',
-            dragon: 'تنيني',
-            star: 'نجمي'
-        };
-
-        card.innerHTML = `
-            ${isEquipped ? `
+        // Action Buttons Setup
+        let actionButtons = '';
+        if (isEquipped) {
+            actionButtons = `
                 <div style="
-                    position: absolute;
-                    top: -8px;
-                    right: -8px;
                     background: linear-gradient(135deg, #2ecc71, #27ae60);
                     color: white;
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 0.75rem;
+                    padding: 8px;
+                    border-radius: 8px;
+                    text-align: center;
                     font-weight: bold;
-                    box-shadow: 0 3px 10px rgba(46,204,113,0.5);
-                    z-index: 10;
-                ">✓ مجهز</div>
-            ` : ''}
-            
-            <div style="text-align: center; margin-bottom: 10px;">
-                <div style="
-                    font-size: 3.5rem;
-                    margin-bottom: 8px;
-                    filter: drop-shadow(0 0 10px ${rarityConfig.color});
-                ">${item.icon || getItemIcon(item)}</div>
-                
-                <div style="
-                    font-size: 0.7rem;
-                    color: ${rarityConfig.color};
-                    font-weight: bold;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-bottom: 5px;
-                ">${rarityConfig.name} • ${categoryName}</div>
-                
-                <div style="
                     font-size: 0.9rem;
-                    font-weight: bold;
-                    color: #fff;
-                    margin-bottom: 3px;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                ">${item.name}</div>
-                
-                <div style="
-                    font-size: 0.7rem;
-                    color: #aaa;
-                    background: rgba(0,0,0,0.3);
-                    display: inline-block;
-                    padding: 3px 10px;
-                    border-radius: 10px;
-                ">${tierNames[item.tier] || 'عادي'}</div>
-            </div>
-
-            ${statsHtml}
-
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                ${!isEquipped ? `
-                    <button onclick="equipItemById(${item.id})" style="
+                    box-shadow: 0 3px 10px rgba(46,204,113,0.3);
+                ">✓ مجهز</div>`;
+        } else {
+            actionButtons = `
+                <div style="display: flex; gap: 8px; margin-top: auto;">
+                    <button onclick='toggleEquip(${JSON.stringify(item).replace(/'/g, "&#39;")})' style="
                         flex: 1;
                         background: linear-gradient(135deg, #2ecc71, #27ae60);
                         border: none;
                         color: white;
-                        padding: 10px;
-                        border-radius: 8px;
+                        padding: 8px;
+                        border-radius: 6px;
                         font-weight: bold;
-                        font-size: 0.9rem;
                         cursor: pointer;
-                        transition: all 0.3s;
-                        box-shadow: 0 3px 10px rgba(46,204,113,0.3);
-                    " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 15px rgba(46,204,113,0.5)'"
-                       onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 3px 10px rgba(46,204,113,0.3)'">
-                        🎯 تجهيز
-                    </button>
-                ` : ''}
-                
-                <button onclick="sellSword(${item.id})" style="
-                    ${isEquipped ? 'flex: 1' : 'flex: 0.8'};
-                    background: linear-gradient(135deg, #f59e0b, #d97706);
-                    border: none;
-                    color: white;
-                    padding: 10px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                    transition: all 0.3s;
-                    box-shadow: 0 3px 10px rgba(245,158,11,0.3);
-                " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 15px rgba(245,158,11,0.5)'"
-                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 3px 10px rgba(245,158,11,0.3)'">
-                    💰 ${formatNumber(item.sellValue)}
-                </button>
+                    ">تجهيز</button>
+                    <button onclick='sellItem(${item.id})' style="
+                        flex: 1;
+                        background: linear-gradient(135deg, #f59e0b, #d97706);
+                        border: none;
+                        color: white;
+                        padding: 8px;
+                        border-radius: 6px;
+                        font-weight: bold;
+                        cursor: pointer;
+                    ">💰 ${formatNumber(item.sellValue)}</button>
+                </div>`;
+        }
+
+        card.innerHTML = `
+            <div style="text-align: center; margin-bottom: 5px;">
+                <div style="font-size: 3rem; margin-bottom: 5px; filter: drop-shadow(0 0 10px ${rarityConfig.color});">
+                    ${getItemIcon(item)}
+                </div>
+                <div style="font-size: 0.7rem; color: ${rarityConfig.color}; font-weight: bold; text-transform: uppercase;">
+                    ${rarityConfig.name} • ${categoryNames[item.category] || 'معدات'}
+                </div>
+                <div style="font-size: 1rem; font-weight: bold; color: #fff; margin: 5px 0;">
+                    ${item.name}
+                </div>
+                <span style="font-size: 0.7rem; background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 10px; color: #aaa;">
+                    ${tierNames[item.tier] || 'عادي'}
+                </span>
             </div>
+
+            ${statsHtml}
+            ${actionButtons}
         `;
 
         DOM.inventoryGrid.appendChild(card);
     });
 }
 
+function createInventoryControls() {
+    const controlsContainer = document.createElement('div');
+    controlsContainer.className = 'inventory-controls';
+    controlsContainer.style.cssText = `
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 15px;
+        flex-wrap: wrap; 
+        gap: 10px;
+    `;
+
+    // Filter Group
+    const filterGroup = document.createElement('div');
+    filterGroup.className = 'filter-group';
+    ['all', 'weapon', 'body', 'head'].forEach(type => {
+        const btn = document.createElement('button');
+        const labels = { all: 'الكل', weapon: '⚔️', body: '🛡️', head: '🪖' };
+        btn.textContent = labels[type];
+        btn.className = `filter-btn ${currentInventoryFilter === type ? 'active' : ''}`;
+        btn.onclick = () => {
+            currentInventoryFilter = type;
+            updateInventoryUI();
+        };
+        filterGroup.appendChild(btn);
+    });
+    controlsContainer.appendChild(filterGroup);
+
+    // Sell Button
+    const sellBtn = document.createElement('button');
+    sellBtn.textContent = '💰 بيع غير المجهز';
+    sellBtn.className = 'sell-all-btn';
+    sellBtn.onclick = () => window.sellAllUnused();
+    controlsContainer.appendChild(sellBtn);
+
+    return controlsContainer;
+}
+// Get category display name
+// =====================================================
+// INVENTORY HELPERS
+// =====================================================
+
 window.equipItemById = function (id) {
     const item = gameState.inventory.find(i => i.id === id);
     if (item) equipItem(item);
 };
 
-window.sellSword = function (id) {
+// Support for the UI call which might pass the object directly
+window.toggleEquip = function (item) {
+    if (typeof item === 'object') {
+        equipItem(item);
+    } else {
+        equipItemById(item);
+    }
+}
+
+window.sellItem = function (id) {
     // Check if equipped
     const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
     if (equippedIds.includes(id)) {
@@ -1779,15 +1796,18 @@ window.sellSword = function (id) {
     if (index === -1) return;
 
     const item = gameState.inventory[index];
-    gameState.gold += item.sellValue;
-    gameState.stats.totalGold += item.sellValue;
+    const sellVal = item.sellValue || 0;
+
+    gameState.gold += sellVal;
+    gameState.stats.totalGold += sellVal;
 
     gameState.inventory.splice(index, 1);
 
-    showToast(`💰 تم بيع ${item.name} مقابل ${formatNumber(item.sellValue)} ذهب`, 'success');
+    showToast(`💰 تم بيع ${item.name} مقابل ${formatNumber(sellVal)} ذهب`, 'success');
+    updateInventoryUI();
     updateUI();
     saveGame(true);
-}
+};
 
 // Update crafting UI to show material tier options
 function updateCraftingUI() {
@@ -2450,6 +2470,75 @@ function initGame() {
 
     // Show name modal or start game
     showNameModal();
+
+    // Check for starter pack (New Player)
+    if (gameState.wave === 1 && gameState.inventory.length === 0 && !gameState.equipment.weapon) {
+        giveStarterPack();
+    }
+}
+
+function giveStarterPack() {
+    console.log("Creating Starter Pack for new player...");
+
+    // 1. Starter Sword (Target: ~40-50 DMG)
+    const starterSword = {
+        id: Date.now(),
+        name: "سيف البداية",
+        category: "weapon",
+        subType: "sword",
+        rarity: "common",
+        isStarter: true,
+        damage: 45,
+        attackSpeed: 1.2,
+        critChance: 10,
+        icon: "⚔️",
+        sellValue: 0
+    };
+
+    // 2. Starter Body Armor (Target: ~200 HP, 10 DEF)
+    const starterBody = {
+        id: Date.now() + 1,
+        name: "درع المتدرب",
+        category: "body",
+        subType: "heavy_plate",
+        rarity: "common",
+        isStarter: true,
+        hp: 250,
+        defense: 15,
+        icon: "🛡️",
+        sellValue: 0
+    };
+
+    // 3. Starter Helmet (Target: ~100 HP, 5 DEF)
+    const starterHelm = {
+        id: Date.now() + 2,
+        name: "خوذة البداية",
+        category: "head",
+        subType: "helm",
+        rarity: "common",
+        isStarter: true,
+        hp: 150,
+        defense: 8,
+        icon: "🪖",
+        sellValue: 0
+    };
+
+    // Equip them directly
+    gameState.equipment.weapon = starterSword;
+    gameState.equipment.body = starterBody;
+    gameState.equipment.head = starterHelm;
+
+    // Add to inventory too (good practice for data consistency)
+    gameState.inventory.push(starterSword, starterBody, starterHelm);
+
+    // Update stats and UI
+    recalculatePlayerStats();
+    updateEquippedUI();
+    updateInventoryUI();
+    updatePlayerHpUI();
+    saveGame(true);
+
+    showToast("🎁 حصلت على حزمة البداية للمقاتل الجديد!", "success");
 }
 
 // Override original functions to track missions
