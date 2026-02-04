@@ -46,7 +46,12 @@ const AuthService = {
 
             this.updateAuthUI(user);
             this.loadCloudData(user.uid);
+            this.listenForGifts(user.uid);
         } else {
+            if (this.giftListener) {
+                this.giftListener(); // Unsubscribe
+                this.giftListener = null;
+            }
             console.log("AuthService: User logged out");
             if (loginOverlay) loginOverlay.style.display = 'flex'; // Show overlay
             if (loggedInView) loggedInView.classList.add('hidden');
@@ -194,6 +199,10 @@ const AuthService = {
                 cloudData = doc.data().gameData;
             }
 
+            // Get name from auth account (displayName or email prefix)
+            const authUser = firebase.auth().currentUser;
+            const accountName = authUser?.displayName || authUser?.email?.split('@')[0] || 'لاعب';
+
             if (cloudData) {
                 console.log("AuthService: Cloud data loaded successfully");
 
@@ -226,28 +235,14 @@ const AuthService = {
                 // 5. Stats Object
                 window.gameState.stats = cloudData.stats || window.gameState.stats;
 
-                // Sync player name if exists in cloud
-                if (cloudData.playerName) {
-                    window.gameState.playerName = cloudData.playerName;
-                    if (window.LeaderboardSystem) {
-                        window.LeaderboardSystem.initPlayer(cloudData.playerName, uid);
-                    }
-                    if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
-                } else {
-                    const authUser = firebase.auth().currentUser;
-                    const fallbackName = authUser?.displayName || authUser?.email?.split('@')[0];
-                    if (fallbackName) {
-                        window.gameState.playerName = fallbackName;
-                        if (window.LeaderboardSystem) {
-                            window.LeaderboardSystem.initPlayer(fallbackName, uid);
-                        }
-                        if (window.setLocalPlayerName) window.setLocalPlayerName(fallbackName);
-                        if (window.saveGame) window.saveGame();
-                    } else {
-                        console.log("Logged in but no name found. Showing Name Modal.");
-                        if (window.NameModalSystem) window.NameModalSystem.show();
-                    }
+                // Use saved name if exists, otherwise use account name
+                const playerName = cloudData.playerName || accountName;
+                window.gameState.playerName = playerName;
+
+                if (window.LeaderboardSystem) {
+                    window.LeaderboardSystem.initPlayer(playerName, uid);
                 }
+                if (window.setLocalPlayerName) window.setLocalPlayerName(playerName);
 
                 console.log("AuthService: Game state restored. Level:", window.gameState.wave, "Items:", window.gameState.inventory.length);
 
@@ -255,18 +250,14 @@ const AuthService = {
                 if (window.saveGame) window.saveGame();
             } else {
                 console.log("No cloud data found for this user. Treating as new user.");
-                const authUser = firebase.auth().currentUser;
-                const fallbackName = authUser?.displayName || authUser?.email?.split('@')[0];
-                if (fallbackName) {
-                    window.gameState.playerName = fallbackName;
-                    if (window.LeaderboardSystem) {
-                        window.LeaderboardSystem.initPlayer(fallbackName, uid);
-                    }
-                    if (window.setLocalPlayerName) window.setLocalPlayerName(fallbackName);
-                    if (window.saveGame) window.saveGame();
-                } else {
-                    if (window.NameModalSystem) window.NameModalSystem.show();
+
+                // New user - use account name automatically (no name modal)
+                window.gameState.playerName = accountName;
+                if (window.LeaderboardSystem) {
+                    window.LeaderboardSystem.initPlayer(accountName, uid);
                 }
+                if (window.setLocalPlayerName) window.setLocalPlayerName(accountName);
+                if (window.saveGame) window.saveGame();
             }
         } catch (error) {
             console.error("Cloud load error:", error);
@@ -283,30 +274,186 @@ const AuthService = {
         } catch (error) {
             console.error("Cloud save error:", error);
         }
+    },
+
+    listenForGifts: function (uid) {
+        if (!db) return;
+
+        // Listen for new gifts
+        this.giftListener = db.collection("users").doc(uid).collection("gifts")
+            .where("claimed", "==", false)
+            .onSnapshot((snapshot) => {
+                snapshot.docChanges().forEach(async (change) => {
+                    if (change.type === "added") {
+                        const gift = change.doc.data();
+                        const giftId = change.doc.id;
+
+                        console.log("Gift received:", gift);
+
+                        // Apply gift to game state
+                        if (gift.gold) {
+                            window.gameState.gold += gift.gold;
+                        }
+                        if (gift.gems) {
+                            window.gameState.gems += gift.gems;
+                        }
+                        if (gift.arenaCoins) {
+                            window.gameState.arenaCoins += gift.arenaCoins;
+                        }
+                        if (gift.item) {
+                            window.gameState.inventory.push(gift.item);
+                        }
+
+                        // Mark gift as claimed
+                        try {
+                            await db.collection("users").doc(uid).collection("gifts").doc(giftId).update({
+                                claimed: true,
+                                claimedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        } catch (e) {
+                            console.error("Error marking gift as claimed:", e);
+                        }
+
+                        // Update UI and save
+                        if (window.updateUI) window.updateUI();
+                        if (window.saveGame) window.saveGame();
+
+                        // Show notification
+                        let msg = "🎁 هدية جديدة! ";
+                        if (gift.gold) msg += `+${gift.gold} ذهب `;
+                        if (gift.gems) msg += `+${gift.gems} جوهرة `;
+                        if (gift.item) msg += `قطعة جديدة! `;
+                        alert(msg);
+                    }
+                });
+            }, (error) => {
+                console.error("Gift listener error:", error);
+            });
     }
 };
 
 window.AuthService = AuthService;
 
+// Update player name everywhere - leaderboard, Firebase, alliance leader
+window.updatePlayerNameEverywhere = async function (newName) {
+    if (!newName || newName.length < 2) {
+        console.error("Invalid name for update");
+        return false;
+    }
+
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        console.error("No user logged in");
+        return false;
+    }
+
+    try {
+        // 1. Update gameState
+        window.gameState.playerName = newName;
+
+        // 2. Update LeaderboardSystem
+        if (window.LeaderboardSystem) {
+            const player = window.LeaderboardSystem.getPlayer();
+            if (player) {
+                player.name = newName;
+                // Update in Firebase leaderboard
+                if (db) {
+                    await db.collection("leaderboard").doc(player.id).update({
+                        name: newName
+                    });
+                }
+            }
+        }
+
+        // 3. Update local display
+        if (window.setLocalPlayerName) {
+            window.setLocalPlayerName(newName);
+        }
+
+        // 4. Update alliance leaderName if player is leader
+        if (window.gameState.allianceId && db) {
+            const allianceDoc = await db.collection("alliances").doc(window.gameState.allianceId).get();
+            if (allianceDoc.exists) {
+                const allianceData = allianceDoc.data();
+                const player = window.LeaderboardSystem?.getPlayer();
+                if (player && allianceData.leaderId === player.id) {
+                    await db.collection("alliances").doc(window.gameState.allianceId).update({
+                        leaderName: newName
+                    });
+                    console.log("Alliance leader name updated to:", newName);
+                }
+            }
+        }
+
+        // 5. Save game to cloud
+        if (window.saveGame) {
+            window.saveGame(true);
+        }
+
+        console.log("Player name updated everywhere to:", newName);
+        return true;
+    } catch (error) {
+        console.error("Error updating player name:", error);
+        return false;
+    }
+};
+
 // Request Name Change Function
 window.requestNameChange = function (type) {
     if (type === 'gems') {
         if (gameState.gems >= 50) {
-            if (confirm("هل تريد دفع 50 جوهرة لتغيير اسمك؟")) {
-                gameState.gems -= 50;
-                window.NameModalSystem.show(true); // Show with force mode
-                // Note: The gem deduction should ideally happen *after* successful change, but simplifying here.
-                // Or better: pass a callback to NameModalSystem?
-                // Let's rely on NameModalSystem handling the 'change' Logic. 
-                // Actually NameModalSystem creates a new player if one doesn't exist.
-                // I need to update NameModalSystem to support 'Change Mode'
+            const newName = prompt("أدخل اسمك الجديد (حرفين على الأقل):");
+            if (newName && newName.trim().length >= 2) {
+                // Check if name is available first
+                window.LeaderboardSystem.isNameTaken(newName.trim()).then(isTaken => {
+                    if (isTaken) {
+                        alert("⚠️ هذا الاسم مستخدم من قبل!");
+                    } else {
+                        gameState.gems -= 50;
+                        window.updatePlayerNameEverywhere(newName.trim()).then(success => {
+                            if (success) {
+                                alert("✅ تم تغيير اسمك بنجاح إلى: " + newName.trim());
+                                if (window.updateUI) window.updateUI();
+                            } else {
+                                gameState.gems += 50; // Refund on failure
+                                alert("⚠️ حدث خطأ في تغيير الاسم");
+                            }
+                        });
+                    }
+                });
+            } else if (newName !== null) {
+                alert("⚠️ الاسم يجب أن يكون حرفين على الأقل");
             }
         } else {
             alert("ليس لديك ما يكفي من الجواهر! (مطلوب 50 💎)");
         }
     } else if (type === 'ad') {
         if (window.AdSystem) {
+            // Watch ad then prompt for name change
             window.AdSystem.watchAd('change_name');
         }
+    }
+};
+
+// Callback for ad-based name change
+window.onNameChangeAdComplete = function () {
+    const newName = prompt("أدخل اسمك الجديد (حرفين على الأقل):");
+    if (newName && newName.trim().length >= 2) {
+        window.LeaderboardSystem.isNameTaken(newName.trim()).then(isTaken => {
+            if (isTaken) {
+                alert("⚠️ هذا الاسم مستخدم من قبل!");
+            } else {
+                window.updatePlayerNameEverywhere(newName.trim()).then(success => {
+                    if (success) {
+                        alert("✅ تم تغيير اسمك بنجاح إلى: " + newName.trim());
+                        if (window.updateUI) window.updateUI();
+                    } else {
+                        alert("⚠️ حدث خطأ في تغيير الاسم");
+                    }
+                });
+            }
+        });
+    } else if (newName !== null) {
+        alert("⚠️ الاسم يجب أن يكون حرفين على الأقل");
     }
 };

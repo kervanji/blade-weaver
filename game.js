@@ -1779,7 +1779,7 @@ function updateInventoryUI() {
         } else {
             actionButtons = `
                 <div style="display: flex; gap: 8px; margin-top: auto;">
-                    <button onclick='toggleEquip(${JSON.stringify(item).replace(/'/g, "&#39;")})' style="
+                    <button onclick='equipItemById(${item.id})' style="
                         flex: 1;
                         background: linear-gradient(135deg, #2ecc71, #27ae60);
                         border: none;
@@ -2076,6 +2076,9 @@ function setupEventListeners() {
 
     // Anvil click
     addSafeListener(DOM.anvil, 'click', handleAnvilClick);
+
+    // Enemy click (Attack)
+    addSafeListener(DOM.enemy, 'click', attackEnemy);
 
     // Modal buttons
     addSafeListener(DOM.equipNewBtn, 'click', () => {

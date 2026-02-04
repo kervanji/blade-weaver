@@ -507,14 +507,24 @@ const AdminSystem = {
         if (!confirm(`Are you sure you want to gift ${targetName || targetId} ${amount} ${type}?`)) return;
         if (!confirm(`هل أنت متأكد من إهداء ${targetName} (${amount} ${type})؟`)) return;
 
-        try {
-            const userRef = db.collection('users').doc(targetId);
-            const updateField = `gameData.${type}`;
-            const updateData = {};
-            updateData[updateField] = firebase.firestore.FieldValue.increment(amount);
+        this.sendGiftToInbox(targetId, targetName, {
+            type: type,
+            amount: amount,
+            description: `Gift from Admin: ${amount} ${type}`
+        });
+    },
 
-            // Use set with merge to create the user doc if it doesn't exist
-            await userRef.set(updateData, { merge: true });
+    sendGiftToInbox: async function (targetId, targetName, giftData) {
+        try {
+            const giftsRef = db.collection('users').doc(targetId).collection('gifts');
+
+            const gift = {
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                claimed: false, // Critical for listener
+                ...giftData
+            };
+
+            await giftsRef.add(gift);
 
             this.sendNotification(`✅ تم إرسال الهدية بنجاح إلى ${targetName}`, 'success');
         } catch (e) {
@@ -617,11 +627,12 @@ const AdminSystem = {
                 sellValue: 100000
             };
 
-            await userRef.set({
-                'gameData.inventory': firebase.firestore.FieldValue.arrayUnion(weapon)
-            }, { merge: true });
-
-            this.sendNotification(`✅ تم إرسال سلاح هدية إلى ${targetName}`, 'success');
+            // Send to player's Inbox
+            this.sendGiftToInbox(targetId, targetName, {
+                type: 'item',
+                item: weapon,
+                description: 'Special Admin Weapon'
+            });
         } catch (e) {
             console.error(e);
             alert('❌ فشل إرسال السلاح.');
@@ -917,155 +928,201 @@ const AdminSystem = {
     // =====================================================
     // WEAPON GIFTING TO SPECIFIC PLAYERS
     // =====================================================
+    // =====================================================
+    // WEAPON GIFTING TO SPECIFIC PLAYERS
+    // =====================================================
     fetchWeaponPlayerList: async function () {
-        if (!db) return;
+        if (!db) {
+            console.error('Database connection not available');
+            return;
+        }
+
         const selectElement = document.getElementById('weapon-gift-player-select');
         const listContainer = document.getElementById('weapon-admin-players-list');
 
         if (!selectElement) return;
 
+        // Reset UI while loading
         selectElement.innerHTML = '<option value="">جاري التحميل...</option>';
-        if (listContainer) listContainer.innerHTML = '<div style="color: #aaa; text-align: center;">جاري التحميل...</div>';
+        if (listContainer) listContainer.innerHTML = '<div style="color: #aaa; text-align: center; padding: 10px;">⏳ جاري جلب البيانات...</div>';
 
         try {
-            // Get recent players from leaderboard
+            // Get recent players from leaderboard to ensure we get active users
             const snapshot = await db.collection('leaderboard')
                 .orderBy('timestamp', 'desc')
                 .limit(50)
                 .get();
+
+            if (snapshot.empty) {
+                selectElement.innerHTML = '<option value="">لا يوجد لاعبين نشطين</option>';
+                if (listContainer) listContainer.innerHTML = '<div style="color: #aaa; text-align: center;">لا يوجد لاعبين</div>';
+                return;
+            }
 
             const players = [];
             snapshot.forEach(doc => {
                 players.push({ id: doc.id, ...doc.data() });
             });
 
-            // Remove duplicates - keep latest record for each name
+            // Filter unique players, keeping the one with highest progress (wave)
             const uniquePlayers = {};
             players.forEach(player => {
-                if (!player.name) return;
-                if (!uniquePlayers[player.name] ||
-                    (player.wave || 0) > (uniquePlayers[player.name].wave || 0)) {
+                if (!player.name) return; // Skip unnamed players
+
+                // If this is the first time we see this name, OR if this record has a higher wave
+                if (!uniquePlayers[player.name] || (player.wave || 0) > (uniquePlayers[player.name].wave || 0)) {
                     uniquePlayers[player.name] = player;
                 }
             });
 
-            // Convert to array and sort by wave
+            // Convert to array and sort by wave (highest first)
             const sortedPlayers = Object.values(uniquePlayers)
                 .sort((a, b) => (b.wave || 0) - (a.wave || 0));
 
-            // Populate dropdown
+            // Populate Dropdown
             selectElement.innerHTML = '<option value="">-- اختر لاعب --</option>';
             sortedPlayers.forEach(player => {
                 const option = document.createElement('option');
                 option.value = player.id;
-                option.textContent = `${player.name} (المستوى ${player.wave || 1})`;
+                option.textContent = `${player.name} (Wave ${player.wave || 1})`;
                 selectElement.appendChild(option);
             });
 
-            // Populate list display
+            // Populate List View (Visual confirmation)
             if (listContainer) {
                 listContainer.innerHTML = '';
-                if (sortedPlayers.length === 0) {
-                    listContainer.innerHTML = '<div style="color: #aaa; text-align: center;">لا يوجد لاعبين</div>';
-                } else {
-                    sortedPlayers.slice(0, 10).forEach(player => {
-                        const div = document.createElement('div');
-                        div.style.cssText = 'background: rgba(255,255,255,0.05); padding: 8px; border-radius: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;';
-                        div.innerHTML = `
-                            <span style="color: #2ecc71; font-weight: bold;">${player.name}</span>
-                            <span style="color: #aaa; font-size: 0.85rem;">المستوى ${player.wave || 1}</span>
-                        `;
-                        listContainer.appendChild(div);
-                    });
-                }
+                sortedPlayers.slice(0, 10).forEach(player => { // Show top 10 in list
+                    const div = document.createElement('div');
+                    div.style.cssText = `
+                        background: rgba(255,255,255,0.05); 
+                        padding: 8px 12px; 
+                        border-radius: 5px; 
+                        margin-bottom: 5px; 
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                        border: 1px solid rgba(255,255,255,0.1);
+                    `;
+                    div.innerHTML = `
+                        <span style="color: #2ecc71; font-weight: bold;">${player.name}</span>
+                        <span style="color: #aaa; font-size: 0.85rem;">موجة ${player.wave || 1}</span>
+                    `;
+                    listContainer.appendChild(div);
+                });
             }
 
-            this.sendNotification('✅ تم تحديث قائمة اللاعبين', 'success');
-        } catch (e) {
-            console.error(e);
+            this.sendNotification('✅ تم تحديث قائمة اللاعبين بنجاح', 'success');
+
+        } catch (error) {
+            console.error('Error fetching player list:', error);
             selectElement.innerHTML = '<option value="">فشل التحميل</option>';
-            if (listContainer) listContainer.innerHTML = '<div style="color: #e74c3c; text-align: center;">فشل التحميل</div>';
+            if (listContainer) listContainer.innerHTML = '<div style="color: #e74c3c; text-align: center;">❌ حدث خطأ في التحميل</div>';
+            this.sendNotification('❌ فشل جلب قائمة اللاعبين', 'error');
         }
     },
 
     sendWeaponToPlayerFromPanel: function () {
-        const playerId = document.getElementById('weapon-gift-player-select')?.value;
-        const playerName = document.querySelector('#weapon-gift-player-select option:checked')?.textContent;
-        const category = document.getElementById('weapon-gift-category')?.value || 'weapon';
-        const rarity = document.getElementById('weapon-gift-rarity')?.value || 'legendary';
-        const tier = document.getElementById('weapon-gift-tier')?.value || 'dragon';
+        // 1. Get Values
+        const playerSelect = document.getElementById('weapon-gift-player-select');
+        const categorySelect = document.getElementById('weapon-gift-category');
+        const raritySelect = document.getElementById('weapon-gift-rarity');
+        const tierSelect = document.getElementById('weapon-gift-tier');
+
+        // 2. Validate Inputs
+        const playerId = playerSelect?.value;
+        const playerName = playerSelect?.options[playerSelect.selectedIndex]?.text;
+        const category = categorySelect?.value || 'weapon';
+        const rarity = raritySelect?.value || 'legendary';
+        const tier = tierSelect?.value || 'dragon';
 
         if (!playerId) {
-            alert('⚠️ يرجى اختيار لاعب من القائمة!');
+            alert('⚠️ يرجى اختيار لاعب من القائمة أولاً!');
             return;
         }
 
-        if (!confirm(`هل أنت متأكد من إرسال ${category === 'weapon' ? 'سلاح' : category === 'body' ? 'درع' : 'خوذة'} (${rarity}) إلى ${playerName}؟`)) {
-            return;
-        }
+        // 3. Translate for confirmation message
+        const categoryNames = { 'weapon': 'سلاح', 'body': 'درع', 'head': 'خوذة' };
+        const rarityNames = { 'common': 'عادي', 'rare': 'نادر', 'epic': 'ملحمي', 'legendary': 'أسطوري', 'mythic': 'خرافي' };
 
+        const confirmMsg = `هل أنت متأكد من إرسال هدية إلى ${playerName}؟\n\n` +
+            `النوع: ${categoryNames[category]}\n` +
+            `الندرة: ${rarityNames[rarity]}\n` +
+            `المستوى: ${tier}`;
+
+        if (!confirm(confirmMsg)) return;
+
+        // 4. Send
         this.sendCustomWeaponToPlayer(playerId, playerName, category, rarity, tier);
     },
 
     sendCustomWeaponToPlayer: async function (targetId, targetName, category, rarity, tier) {
         try {
-            const userRef = db.collection('users').doc(targetId);
+            console.log(`Sending gift to ${targetName} (${targetId})...`);
 
-            // Get rarity and tier configs
-            const rarityConfig = RARITY[rarity] || RARITY.legendary;
-            const tierConfig = MATERIAL_TIERS[tier] || MATERIAL_TIERS.dragon;
+            // Configuration Data
+            const RARITY_MULTIPLIERS = {
+                'common': 1, 'rare': 1.5, 'epic': 2.5, 'legendary': 5, 'mythic': 10
+            };
 
-            // Create the item based on category
-            let item;
+            const TIER_STATS = {
+                'basic': { damageBonus: 1, speedBonus: 1, critBonus: 0 },
+                'iron': { damageBonus: 1.5, speedBonus: 0.95, critBonus: 5 },
+                'steel': { damageBonus: 3, speedBonus: 0.9, critBonus: 10 },
+                'obsidian': { damageBonus: 5, speedBonus: 0.85, critBonus: 15 },
+                'dragon': { damageBonus: 10, speedBonus: 1.2, critBonus: 25 },
+                'star': { damageBonus: 25, speedBonus: 1.5, critBonus: 50 }
+            };
+
+            const rarityMult = RARITY_MULTIPLIERS[rarity] || 1;
+            const tierConfig = TIER_STATS[tier] || TIER_STATS.basic;
+
+            // Generate Item Object
+            let item = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                rarity: rarity,
+                tier: tier,
+                category: category,
+                class: 'warrior', // Default class
+                isGift: true
+            };
 
             if (category === 'weapon') {
-                item = {
-                    id: Date.now(),
-                    name: `سلاح الإدارة (هدية ${rarity})`,
-                    rarity: rarity,
-                    tier: tier,
-                    category: 'weapon',
-                    subType: 'sword', // Default to sword, could be improved
-                    class: 'warrior',
-                    icon: '⚔️',
-                    damage: Math.floor(1000 * rarityConfig.multiplier * tierConfig.damageBonus),
-                    attackSpeed: parseFloat((1.2 * tierConfig.speedBonus).toFixed(2)),
-                    critChance: Math.min(40 + tierConfig.critBonus, 80),
-                    sellValue: Math.floor(10000 * rarityConfig.multiplier)
-                };
-            } else {
-                // Armor (body or head)
-                const armorNames = {
-                    body: 'درع الإدارة',
-                    head: 'خوذة الإدارة'
-                };
+                item.name = `سلاح الإدارة (${rarity})`;
+                item.subType = 'sword';
+                item.icon = '⚔️';
 
-                item = {
-                    id: Date.now(),
-                    name: `${armorNames[category]} (هدية ${rarity})`,
-                    rarity: rarity,
-                    tier: tier,
-                    category: category,
-                    subType: category === 'body' ? 'heavy_plate' : 'helm',
-                    class: 'warrior',
-                    icon: category === 'body' ? '🛡️' : '🪖',
-                    hp: Math.floor(500 * rarityConfig.multiplier * tierConfig.damageBonus),
-                    defense: Math.floor(50 * rarityConfig.multiplier),
-                    sellValue: Math.floor(5000 * rarityConfig.multiplier)
-                };
+                // Calculate Stats
+                item.damage = Math.floor(200 * rarityMult * tierConfig.damageBonus);
+                item.attackSpeed = parseFloat((1.5 * tierConfig.speedBonus).toFixed(2));
+                item.critChance = Math.min(20 + tierConfig.critBonus, 90);
+                item.sellValue = Math.floor(item.damage * 5); // Example sell value logic
+
+            } else {
+                // Armor (Body or Head)
+                const isHead = category === 'head';
+                item.name = isHead ? `خوذة الإدارة (${rarity})` : `درع الإدارة (${rarity})`;
+                item.subType = isHead ? 'helm' : 'heavy_plate';
+                item.icon = isHead ? '🪖' : '🛡️';
+
+                // Calculate Stats
+                const baseHp = isHead ? 200 : 500;
+                const baseDef = isHead ? 20 : 50;
+
+                item.hp = Math.floor(baseHp * rarityMult * tierConfig.damageBonus); // Reuse damageBonus for scaling
+                item.defense = Math.floor(baseDef * rarityMult);
+                item.sellValue = Math.floor(item.hp * 2);
             }
 
-            // Send to player's inventory
-            await userRef.update({
-                'gameData.inventory': firebase.firestore.FieldValue.arrayUnion(item)
+            // Send to Inbox
+            await this.sendGiftToInbox(targetId, targetName, {
+                type: 'item',
+                item: item,
+                description: `🎁 هدية من الإدارة: ${item.name}`
             });
 
-            const itemTypeName = category === 'weapon' ? 'سلاح' : category === 'body' ? 'درع' : 'خوذة';
-            this.sendNotification(`✅ تم إرسال ${itemTypeName} (${rarity}) بنجاح إلى ${targetName}`, 'success');
-
-        } catch (e) {
-            console.error(e);
-            alert('❌ فشل إرسال الهدية. تأكد من أن اللاعب قد ربط حسابه.');
+        } catch (error) {
+            console.error('Failed to send custom weapon:', error);
+            alert('❌ فشل إرسال الهدية. راجع الكونسول للتفاصيل.');
         }
     }
 };

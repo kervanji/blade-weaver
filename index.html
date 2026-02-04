@@ -777,6 +777,10 @@
                                     style="color: #ffd700; font-weight: bold;">1</span></div>
                             <div class="alliance-members">الأعضاء: <span id="alliance-members-count">0/20</span></div>
                         </div>
+                        <div style="font-size: 0.9rem; color: #8ab4f8; margin-bottom: 10px;">
+                            👑 القائد: <span id="alliance-leader-name"
+                                style="color: #ffd700; font-weight: bold;">...</span>
+                        </div>
 
                         <div class="alliance-funds-box"
                             style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; display: inline-block; min-width: 200px;">
@@ -796,6 +800,11 @@
 
                     <!-- Alliance Tabs/Sections -->
                     <div class="alliance-sections" style="display: flex; flex-direction: column; gap: 15px;">
+
+                        <!-- Pending Join Requests (Leader Only) -->
+                        <div id="alliance-pending-requests" style="display: none;">
+                            <!-- Will be populated by JS -->
+                        </div>
 
                         <!-- War Section -->
                         <div class="alliance-section-card"
@@ -992,36 +1001,6 @@
         </div>
     </div>
 
-    <!-- Name Input Modal -->
-    <div class="modal" id="name-modal">
-        <div class="modal-content name-modal-content">
-            <div class="modal-header">
-                <h3>⚔️ مرحباً بك في Blade Weaver!</h3>
-            </div>
-            <div class="modal-body">
-                <div class="name-input-section">
-                    <p class="name-prompt" style="font-size: 1rem; margin-bottom: 15px; color: #ffd700;">أدخل اسمك ليظهر
-                        في لوحة الصدارة</p>
-                    <input type="text" id="player-name-input" class="name-input" placeholder="اسمك (حرفين على الأقل)..."
-                        maxlength="20" autocomplete="off"
-                        style="width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: #fff; text-align: center; transition: all 0.3s;">
-                    <p class="name-error" id="name-error-message"
-                        style="font-size: 0.9rem; margin-top: 8px; color: #e74c3c; font-weight: bold; display: none; text-align: center;">
-                        ⚠️ الاسم مستخدم من قبل</p>
-                    <p class="name-hint" style="font-size: 0.85rem; margin-top: 10px; color: #aaa;">✓ سيتم حفظ تقدمك
-                        تلقائياً<br>✓ يمكنك ربط حسابك لاحقاً</p>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="modal-btn auth-btn google-btn hidden" id="start-link-btn"
-                    style="margin-bottom: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
-                    <span class="icon">🔗</span> ربط الحساب الآن (اختياري)
-                </button>
-                <button class="modal-btn start-btn" id="start-game-btn" disabled
-                    style="background: #2ecc71; font-size: 1.1rem; padding: 15px;">ابدأ اللعب!</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Conflict Resolution Modal -->
     <div class="modal hidden" id="conflict-modal">
@@ -1309,6 +1288,21 @@
                         <p style="font-size: 0.8rem; color: #aaa; margin-top: 10px; text-align: center;">📌 سيتم إرسال
                             تذكير قبل البطولة بساعة</p>
                     </div>
+                </div>
+            </div>
+        </div>
+        <!-- Name Input Modal -->
+        <div id="name-modal" class="modal hidden">
+            <div class="modal-content name-modal-content">
+                <h3>⚔️ مرحباً بك في Blade Weaver!</h3>
+                <p class="name-prompt">أدخل اسمك ليظهر في لوحة الصدارة</p>
+                <input type="text" id="player-name-input" placeholder="اسم البطل..." maxlength="15" autocomplete="off">
+                <p id="name-error-message" style="display: none; color: #e74c3c; font-size: 0.9rem; margin-top: 5px;">
+                </p>
+
+                <div class="name-modal-buttons">
+                    <button id="start-game-btn" disabled>ابدأ اللعب!</button>
+                    <!-- <button id="start-link-btn" class="secondary-btn">🔗 ربط حساب Google</button> -->
                 </div>
             </div>
         </div>

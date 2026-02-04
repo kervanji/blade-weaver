@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // User data rule: Users can read and write only their own data
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // User data rule: Users can read/write their own data, Admin can write to anyone
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'memedkervanji@gmail.com');
     }
     
     // Leaderboard rule: Anyone can read, but only authenticated users can write (append only ideally, but write for now)

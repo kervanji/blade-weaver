@@ -8,17 +8,52 @@ const AllianceConfig = {
     UPGRADE_COST_SCALE: 1.5, // Cost * 1.5 per level
     MAX_LEVEL: 10,
     UPGRADES: {
-        gold_shrine: { name: "ضريح الذهب", desc: "زيادة الذهب المكتسب", bonusPerLevel: 0.05, icon: "💰" },
-        war_temple: { name: "معبد الحرب", desc: "زيادة الضرر في الحروب", bonusPerLevel: 0.03, icon: "⚔️" },
-        guardian_statue: { name: "تمثال الحارس", desc: "زيادة الدفاع في الحروب", bonusPerLevel: 0.03, icon: "🛡️" },
-        xp_library: { name: "مكتبة الخبرة", desc: "زيادة الخبرة المكتسبة", bonusPerLevel: 0.05, icon: "📚" }
+        gold_shrine: {
+            name: "ضريح الذهب",
+            desc: "يزيد الذهب من الوحوش بنسبة 15% لكل مستوى. المستوى 10 = +150% ذهب!",
+            bonusPerLevel: 0.15,
+            icon: "💰"
+        },
+        war_temple: {
+            name: "معبد الحرب",
+            desc: "يزيد ضرر السلاح على الوحوش بنسبة 10% لكل مستوى. المستوى 10 = +100% ضرر!",
+            bonusPerLevel: 0.10,
+            icon: "⚔️"
+        },
+        guardian_statue: {
+            name: "تمثال الحارس",
+            desc: "يقلل الضرر الذي تتلقاه من الوحوش بنسبة 8% لكل مستوى. المستوى 10 = -80% ضرر!",
+            bonusPerLevel: 0.08,
+            icon: "🛡️"
+        },
+        xp_library: {
+            name: "مكتبة الخبرة",
+            desc: "يزيد نقاط الحدادة من النقر والتعدين بنسبة 12% لكل مستوى. المستوى 10 = +120%!",
+            bonusPerLevel: 0.12,
+            icon: "📚"
+        }
     },
     GEM_UPGRADE_COST_BASE: 50,
     GEM_UPGRADE_COST_SCALE: 1.7,
     GEM_UPGRADES: {
-        forge_core: { name: "قلب الحدادة", desc: "زيادة قوة العتاد المصنوع", bonusPerLevel: 0.04, icon: "💎" },
-        rare_forge: { name: "شرارة الندرة", desc: "زيادة فرصة الندرة", bonusPerLevel: 0.03, icon: "✨" },
-        spirit_well: { name: "بئر الأرواح", desc: "زيادة أرواح الصعود", bonusPerLevel: 0.05, icon: "🕯️" }
+        forge_core: {
+            name: "قلب الحدادة",
+            desc: "يزيد ضرر وإحصائيات العتاد المصنوع بنسبة 12% لكل مستوى. المستوى 10 = +120% قوة!",
+            bonusPerLevel: 0.12,
+            icon: "💎"
+        },
+        rare_forge: {
+            name: "شرارة الندرة",
+            desc: "يزيد فرصة الحصول على عتاد نادر/أسطوري بنسبة 10% لكل مستوى. المستوى 10 = +100%!",
+            bonusPerLevel: 0.10,
+            icon: "✨"
+        },
+        spirit_well: {
+            name: "بئر الأرواح",
+            desc: "يزيد أرواح السيف عند الصعود بنسبة 15% لكل مستوى. المستوى 10 = +150% أرواح!",
+            bonusPerLevel: 0.15,
+            icon: "🕯️"
+        }
     }
 };
 
@@ -701,11 +736,53 @@ const ArenaSystem = {
                         gameState.allianceUpgrades = data.upgrades || {};
                         gameState.allianceGemUpgrades = data.gemUpgrades || {};
 
+                        // Display Leader Name
+                        const leaderNameEl = document.getElementById('alliance-leader-name');
+                        if (leaderNameEl) {
+                            leaderNameEl.textContent = data.leaderName || 'غير معروف';
+                        }
+
                         // War Stats
                         const wins = data.warHistory?.filter(w => w.result === 'win').length || 0;
                         const losses = data.warHistory?.filter(w => w.result === 'loss').length || 0;
                         document.getElementById('war-wins-val').textContent = wins;
                         document.getElementById('war-losses-val').textContent = losses;
+
+                        // Pending Requests Section (Leader Only)
+                        const currentPlayer = LeaderboardSystem.getPlayer();
+                        const isLeader = currentPlayer && data.leaderId === currentPlayer.id;
+                        const requestsContainer = document.getElementById('alliance-pending-requests');
+
+                        if (requestsContainer) {
+                            const pendingRequests = data.pendingRequests || [];
+
+                            if (isLeader && pendingRequests.length > 0) {
+                                requestsContainer.style.display = 'block';
+                                requestsContainer.innerHTML = `
+                                    <div style="background: rgba(255,215,0,0.1); border: 1px solid #ffd700; border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                                        <h4 style="color: #ffd700; margin: 0 0 10px 0; font-size: 1rem;">📩 طلبات الانضمام (${pendingRequests.length})</h4>
+                                        <div id="pending-requests-list" style="max-height: 200px; overflow-y: auto;"></div>
+                                    </div>
+                                `;
+
+                                const listEl = document.getElementById('pending-requests-list');
+                                pendingRequests.forEach(req => {
+                                    const reqDiv = document.createElement('div');
+                                    reqDiv.style = "display: flex; justify-content: space-between; align-items: center; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px; margin-bottom: 5px;";
+                                    reqDiv.innerHTML = `
+                                        <span style="color: #fff;">👤 ${req.playerName}</span>
+                                        <div>
+                                            <button onclick="ArenaSystem.acceptJoinRequest('${req.playerId}', '${req.playerName}')" style="padding: 5px 10px; border: none; border-radius: 4px; background: #2ecc71; color: white; cursor: pointer; margin-left: 5px;">✅ قبول</button>
+                                            <button onclick="ArenaSystem.rejectJoinRequest('${req.playerId}', '${req.playerName}')" style="padding: 5px 10px; border: none; border-radius: 4px; background: #e74c3c; color: white; cursor: pointer;">❌ رفض</button>
+                                        </div>
+                                    `;
+                                    listEl.appendChild(reqDiv);
+                                });
+                            } else {
+                                requestsContainer.style.display = 'none';
+                                requestsContainer.innerHTML = '';
+                            }
+                        }
 
                         // Upgrades List
                         const upgradesList = document.getElementById('alliance-upgrades-list');
@@ -726,13 +803,14 @@ const ArenaSystem = {
                                 div.innerHTML = `
                                     <div style="font-size: 1.5rem; margin-bottom: 5px;">${config.icon}</div>
                                     <div style="font-weight: bold; font-size: 0.9rem;">${config.name}</div>
+                                    <div style="font-size: 0.7rem; color: #8ab4f8; margin-bottom: 8px; line-height: 1.3;">${config.desc}</div>
                                     <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">مستوى ${currentLevel}/${AllianceConfig.MAX_LEVEL}</div>
-                                    <div style="font-size: 0.75rem; color: #ffd700; margin-bottom: 5px;">الآن: +${currentBonus}%</div>
+                                    <div style="font-size: 0.85rem; color: #ffd700; margin-bottom: 8px; font-weight: bold;">⚡ الآن: +${currentBonus}%</div>
                                     ${!isMax ? `
-                                        <button onclick="ArenaSystem.buyAllianceUpgrade('${key}')" style="width: 100%; padding: 5px; background: #2980b9; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.8rem;">
-                                            تطوير (${cost.toLocaleString()}) → +${nextBonus}%
+                                        <button onclick="ArenaSystem.buyAllianceUpgrade('${key}')" style="width: 100%; padding: 8px; background: linear-gradient(135deg, #2980b9, #3498db); border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.85rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                                            تطوير (${cost.toLocaleString()}) 💰 → +${nextBonus}%
                                         </button>
-                                    ` : `<div style="color: #2ecc71; font-size: 0.8rem;">الحد الأقصى!</div>`}
+                                    ` : `<div style="color: #2ecc71; font-size: 0.9rem; font-weight: bold;">✅ الحد الأقصى!</div>`}
                                 `;
                                 upgradesList.appendChild(div);
                             });
@@ -756,13 +834,14 @@ const ArenaSystem = {
                                 div.innerHTML = `
                                     <div style="font-size: 1.5rem; margin-bottom: 5px;">${config.icon}</div>
                                     <div style="font-weight: bold; font-size: 0.9rem;">${config.name}</div>
+                                    <div style="font-size: 0.7rem; color: #d4a5ff; margin-bottom: 8px; line-height: 1.3;">${config.desc}</div>
                                     <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">مستوى ${currentLevel}/${AllianceConfig.MAX_LEVEL}</div>
-                                    <div style="font-size: 0.75rem; color: #c39bd3; margin-bottom: 5px;">الآن: +${currentBonus}%</div>
+                                    <div style="font-size: 0.85rem; color: #c39bd3; margin-bottom: 8px; font-weight: bold;">⚡ الآن: +${currentBonus}%</div>
                                     ${!isMax ? `
-                                        <button onclick="ArenaSystem.buyAllianceGemUpgrade('${key}')" style="width: 100%; padding: 5px; background: #8e44ad; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.8rem;">
+                                        <button onclick="ArenaSystem.buyAllianceGemUpgrade('${key}')" style="width: 100%; padding: 8px; background: linear-gradient(135deg, #8e44ad, #9b59b6); border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 0.85rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
                                             تطوير (${cost.toLocaleString()} 💎) → +${nextBonus}%
                                         </button>
-                                    ` : `<div style="color: #2ecc71; font-size: 0.8rem;">الحد الأقصى!</div>`}
+                                    ` : `<div style="color: #2ecc71; font-size: 0.9rem; font-weight: bold;">✅ الحد الأقصى!</div>`}
                                 `;
                                 gemUpgradesList.appendChild(div);
                             });
@@ -800,8 +879,7 @@ const ArenaSystem = {
                         const membersList = document.getElementById('alliance-members-list');
                         if (membersList) {
                             membersList.innerHTML = '';
-                            const currentPlayer = LeaderboardSystem.getPlayer();
-                            const isLeader = currentPlayer && data.leaderId === currentPlayer.id;
+                            // Note: currentPlayer and isLeader already defined above
                             data.members.forEach(memberId => {
                                 // Ideally we fetch names. For now just ID or placeholder if we can't fetch.
                                 // Or we assume leaderboard had them. 
@@ -832,34 +910,62 @@ const ArenaSystem = {
         list.innerHTML = "جاري البحث...";
 
         try {
-            const snapshot = await db.collection("alliances").limit(5).get();
+            const snapshot = await db.collection("alliances").limit(20).get();
             list.innerHTML = "";
+
+            if (snapshot.empty) {
+                list.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">لا توجد تحالفات حالياً. كن أول من ينشئ تحالفاً!</div>';
+                return;
+            }
+
             snapshot.forEach(doc => {
                 const data = doc.data();
+                const isFull = data.memberCount >= 20;
                 const div = document.createElement('div');
                 div.className = 'alliance-card';
-                div.style = "background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center;";
+                div.style = "background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.1);";
                 div.innerHTML = `
-                    <div>
-                        <strong>${data.name}</strong><br>
-                        <small>الأعضاء: ${data.memberCount}/20</small>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: bold; font-size: 1rem; color: #ffd700; margin-bottom: 4px;">🛡️ ${data.name}</div>
+                            <div style="font-size: 0.8rem; color: #aaa;">
+                                <span>⭐ المستوى: ${data.level || 1}</span> • 
+                                <span>👥 ${data.memberCount}/20</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #8ab4f8; margin-top: 3px;">
+                                👑 القائد: ${data.leaderName || 'غير معروف'}
+                            </div>
+                        </div>
+                        <div>
+                            ${isFull ?
+                        '<span style="color: #e74c3c; font-size: 0.8rem;">ممتلئ</span>' :
+                        `<button onclick="ArenaSystem.requestJoinAlliance('${doc.id}')" style="padding: 8px 15px; border-radius: 5px; border: none; background: linear-gradient(135deg, #3498db, #2980b9); color: white; font-weight: bold; cursor: pointer;">📩 طلب انضمام</button>`
+                    }
+                        </div>
                     </div>
-                    <button onclick="ArenaSystem.joinAlliance('${doc.id}')" style="padding: 5px 10px; border-radius: 5px; border: none; background: #2ecc71; color: white;">انضمام</button>
                 `;
                 list.appendChild(div);
             });
         } catch (e) {
+            console.error(e);
             list.innerHTML = "فشل في تحميل التحالفات.";
         }
     },
 
-    joinAlliance: async function (id) {
+    // Send a join request to an alliance (not instant join)
+    requestJoinAlliance: async function (id) {
         if (gameState.allianceId) {
             alert("⚠️ أنت بالفعل في تحالف!");
             return;
         }
         if (typeof firebase !== 'undefined' && firebase.auth && !firebase.auth().currentUser) {
-            alert("⚠️ يجب تسجيل الدخول للانضمام لتحالف.");
+            alert("⚠️ يجب تسجيل الدخول لإرسال طلب انضمام.");
+            return;
+        }
+
+        const player = LeaderboardSystem.getPlayer();
+        if (!player) {
+            alert("⚠️ لم يتم العثور على بيانات اللاعب.");
             return;
         }
 
@@ -873,19 +979,119 @@ const ArenaSystem = {
                 return;
             }
 
+            // Check if already requested
+            const pendingRequests = data.pendingRequests || [];
+            if (pendingRequests.some(r => r.playerId === player.id)) {
+                alert("⚠️ لقد أرسلت طلب انضمام بالفعل! انتظر رد القائد.");
+                return;
+            }
+
+            // Add to pending requests
             await ref.update({
-                members: firebase.firestore.FieldValue.arrayUnion(LeaderboardSystem.getPlayer().id),
-                memberCount: firebase.firestore.FieldValue.increment(1)
+                pendingRequests: firebase.firestore.FieldValue.arrayUnion({
+                    playerId: player.id,
+                    playerName: player.name,
+                    requestedAt: Date.now()
+                })
             });
 
-            gameState.allianceId = id;
-            saveGame();
-            updateUI();
-            alert(`🛡️ انضممت إلى "${data.name}"!`);
+            alert(`📩 تم إرسال طلب انضمام إلى "${data.name}"! انتظر موافقة القائد.`);
+        } catch (e) {
+            console.error(e);
+            alert(`⚠️ فشل إرسال الطلب: ${e.message || e}`);
+        }
+    },
+
+    // Accept a join request (leader only)
+    acceptJoinRequest: async function (playerId, playerName) {
+        if (!gameState.allianceId) {
+            alert("⚠️ أنت لست في تحالف!");
+            return;
+        }
+
+        const player = LeaderboardSystem.getPlayer();
+        if (!player) return;
+
+        try {
+            const ref = db.collection("alliances").doc(gameState.allianceId);
+            const doc = await ref.get();
+            const data = doc.data();
+
+            // Check if current player is leader
+            if (data.leaderId !== player.id) {
+                alert("⚠️ فقط القائد يمكنه قبول الطلبات!");
+                return;
+            }
+
+            if (data.memberCount >= 20) {
+                alert("⚠️ التحالف ممتلئ!");
+                return;
+            }
+
+            // Find and remove the request
+            const currentRequests = data.pendingRequests || [];
+            const requestToRemove = currentRequests.find(r => r.playerId === playerId);
+
+            if (!requestToRemove) {
+                alert("⚠️ لم يتم العثور على الطلب!");
+                return;
+            }
+
+            // Add player as member and remove from pending
+            await ref.update({
+                members: firebase.firestore.FieldValue.arrayUnion(playerId),
+                memberCount: firebase.firestore.FieldValue.increment(1),
+                pendingRequests: firebase.firestore.FieldValue.arrayRemove(requestToRemove)
+            });
+
+            alert(`✅ تم قبول ${playerName} في التحالف!`);
             this.updateAllianceUI();
         } catch (e) {
-            alert(`⚠️ فشل الانضمام: ${e.message || e}`);
+            console.error(e);
+            alert(`⚠️ فشل قبول الطلب: ${e.message || e}`);
         }
+    },
+
+    // Reject a join request (leader only)
+    rejectJoinRequest: async function (playerId, playerName) {
+        if (!gameState.allianceId) return;
+
+        const player = LeaderboardSystem.getPlayer();
+        if (!player) return;
+
+        try {
+            const ref = db.collection("alliances").doc(gameState.allianceId);
+            const doc = await ref.get();
+            const data = doc.data();
+
+            // Check if current player is leader
+            if (data.leaderId !== player.id) {
+                alert("⚠️ فقط القائد يمكنه رفض الطلبات!");
+                return;
+            }
+
+            // Find and remove the request
+            const currentRequests = data.pendingRequests || [];
+            const requestToRemove = currentRequests.find(r => r.playerId === playerId);
+
+            if (!requestToRemove) {
+                return;
+            }
+
+            await ref.update({
+                pendingRequests: firebase.firestore.FieldValue.arrayRemove(requestToRemove)
+            });
+
+            alert(`❌ تم رفض طلب ${playerName}.`);
+            this.updateAllianceUI();
+        } catch (e) {
+            console.error(e);
+        }
+    },
+
+    // Keep old joinAlliance for backward compatibility but redirect to request
+    joinAlliance: async function (id) {
+        return this.requestJoinAlliance(id);
     },
 
     // --- ALLIANCE FEATURES (Donations, Upgrades, War) ---
