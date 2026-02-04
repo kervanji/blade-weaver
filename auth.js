@@ -46,11 +46,16 @@ const AuthService = {
 
             this.updateAuthUI(user);
             this.loadCloudData(user.uid);
+            // Prevent duplicate listeners for the same user
+            if (this.giftListener && this.giftListenerUid === user.uid) {
+                return;
+            }
             this.listenForGifts(user.uid);
         } else {
             if (this.giftListener) {
                 this.giftListener(); // Unsubscribe
                 this.giftListener = null;
+                this.giftListenerUid = null;
             }
             console.log("AuthService: User logged out");
             if (loginOverlay) loginOverlay.style.display = 'flex'; // Show overlay
@@ -213,7 +218,7 @@ const AuthService = {
                 // 1. Basic Stats
                 window.gameState.gold = cloudData.gold || 0;
                 window.gameState.gems = cloudData.gems || 0;
-                window.gameState.wave = cloudData.wave || 1;
+                window.gameState.wave = cloudData.wave || window.gameState.wave || 1;
                 window.gameState.swordSpirit = cloudData.swordSpirit || 0;
                 window.gameState.arenaCoins = cloudData.arenaCoins || 0;
 
@@ -279,6 +284,13 @@ const AuthService = {
     listenForGifts: function (uid) {
         if (!db) return;
 
+        // Ensure only one listener is active
+        if (this.giftListener) {
+            this.giftListener(); // Unsubscribe previous
+            this.giftListener = null;
+            this.giftListenerUid = null;
+        }
+
         // Listen for new gifts
         this.giftListener = db.collection("users").doc(uid).collection("gifts")
             .where("claimed", "==", false)
@@ -329,6 +341,7 @@ const AuthService = {
             }, (error) => {
                 console.error("Gift listener error:", error);
             });
+        this.giftListenerUid = uid;
     }
 };
 

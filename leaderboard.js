@@ -98,6 +98,16 @@ const LeaderboardSystem = {
             const player = this.getPlayer();
             if (!player) return;
 
+            // Calculate current and potential spirits gained
+            let gainedSpirits = Math.floor((gameState.wave || 0) / 10);
+            if (gameState.activeCharacter === 'wise' && typeof getCharacterBuff === 'function') {
+                gainedSpirits = Math.floor(gainedSpirits * getCharacterBuff('wise'));
+            }
+            const spiritBonus = (typeof getAllianceGemBonus === 'function') ? getAllianceGemBonus('spirit_well') : 0;
+            if (spiritBonus > 0) {
+                gainedSpirits = Math.floor(gainedSpirits * (1 + spiritBonus));
+            }
+
             // تحديث أو إضافة السكور في قاعدة البيانات
             await db.collection("leaderboard").doc(player.id).set({
                 name: playerName,
@@ -105,6 +115,8 @@ const LeaderboardSystem = {
                 wave: wave,
                 swordsForged: swordsForged,
                 swordSpirit: gameState.swordSpirit || 0, // نقاط الصعود
+                currentSpirits: gameState.swordSpirit || 0,
+                gainedSpirits: gainedSpirits,
                 season: this.getCurrentSeasonKey(),
                 equipment: equipment || { head: null, body: null, weapon: null },
                 activeCharacter: activeCharacter || 'default',

@@ -72,6 +72,8 @@ var gameState = {
 
     // Prestige
     swordSpirit: 0,
+    prestigePreviewSpirits: 0,
+    lastPrestigeGainedSpirits: 0,
     pityCounter: 0,
 
     // Statistics
@@ -353,7 +355,11 @@ function getAllianceUpgradeLevel(type) {
 function getAllianceBonus(type) {
     if (!window.AllianceConfig || !window.AllianceConfig.UPGRADES || !window.AllianceConfig.UPGRADES[type]) return 0;
     const level = getAllianceUpgradeLevel(type);
-    return level * window.AllianceConfig.UPGRADES[type].bonusPerLevel;
+    let bonus = level * window.AllianceConfig.UPGRADES[type].bonusPerLevel;
+    if (type === 'guardian_statue') {
+        bonus = Math.min(0.8, bonus);
+    }
+    return bonus;
 }
 
 function getAllianceGemUpgradeLevel(type) {
@@ -710,26 +716,34 @@ function handleRockClick() {
     }
 
     const spiritBonus = 1 + gameState.swordSpirit;
-    let pointsGained = Math.floor(miningPower * 2.5 * spiritBonus);
-    pointsGained = Math.floor(pointsGained * (1 + getAllianceBonus('xp_library')));
+    let pointsGained = Math.floor(miningPower * 6 * spiritBonus);
+    // Switched to Gold: Use Gold Shrine bonus instead of XP Library
+    pointsGained = Math.floor(pointsGained * (1 + getAllianceBonus('gold_shrine')));
 
-    gameState.smithingPoints += pointsGained;
+    gameState.gold += pointsGained;
+    gameState.stats.totalGold += pointsGained;
+
+    if (window.MissionsSystem) {
+        MissionsSystem.updateProgress('gold', pointsGained);
+    }
 
     // Updated Mining logic: Chance for all materials with rarity
-    const dropChance = Math.min(0.65, 0.2 + (miningPower * 0.02));
+    // Increased drop chance and base rates
+    const dropChance = Math.min(0.9, 0.35 + (miningPower * 0.04));
     if (Math.random() < dropChance) {
         const roll = Math.random() * 100;
         let type = 'iron';
 
         // Rarity chances based on pickaxe level
-        const bonus = miningPower * 1.2;
-        if (roll < 2 + bonus * 0.2) type = 'starMetal';
-        else if (roll < 10 + bonus * 0.6) type = 'dragonBone';
-        else if (roll < 30 + bonus * 0.9) type = 'obsidian';
-        else if (roll < 60 + bonus * 1.2) type = 'steel';
+        const bonus = miningPower * 1.5; // Increased bonus impact
+        if (roll < 2 + bonus * 0.25) type = 'starMetal';
+        else if (roll < 10 + bonus * 0.7) type = 'dragonBone';
+        else if (roll < 35 + bonus * 1.0) type = 'obsidian';
+        else if (roll < 70 + bonus * 1.3) type = 'steel';
         else type = 'iron';
 
-        const amount = 1;
+        // Resource amount: Random 1-3 base + bonus from mining power
+        const amount = Math.floor(Math.random() * 3) + 1 + Math.floor(miningPower / 10);
         gameState.materials[type] += amount;
         droppedMat = { type, amount };
 
@@ -758,7 +772,7 @@ function showMiningFeedback(points, material) {
     feedback.style.left = (50 + random(-20, 20)) + '%';
     feedback.style.top = (50 + random(-20, 20)) + '%';
 
-    let text = `+${points}`;
+    let text = `+${points} 💰`;
     if (material) {
         text += `\n✨${MATERIAL_NAMES[material.type]}`;
     }
@@ -905,6 +919,10 @@ function attackEnemy() {
     if (gameState.activeCharacter === 'berserker') {
         damage *= getCharacterBuff('berserker');
     }
+
+    // Alliance Crit Bonus (Cap total at 50%)
+    const allianceCritBonus = getAllianceBonus('crit_chance') * 100;
+    critChance = Math.min(50, critChance + allianceCritBonus);
 
     // Critical hit check
     if (Math.random() * 100 < critChance) {
@@ -1158,7 +1176,14 @@ function defeatEnemy() {
     setTimeout(() => spawnEnemy(), 500);
 
     updateUI();
-    saveGame();
+    updateUI();
+
+    // Save to cloud every 5 waves to acceptably trade off between performance and data safety
+    if (gameState.wave % 5 === 0) {
+        saveGame(true);
+    } else {
+        saveGame();
+    }
 }
 
 function getMaterialDrop() {
@@ -1230,7 +1255,7 @@ function buyUpgrade(type) {
     }
 
     updateUI();
-    saveGame();
+    saveGame(true);
 }
 
 // =====================================================
@@ -1253,6 +1278,7 @@ function updatePrestigeAvailability() {
     if (spiritBonus > 0) {
         spiritsGained = Math.floor(spiritsGained * (1 + spiritBonus));
     }
+    gameState.prestigePreviewSpirits = spiritsGained;
     DOM.gainedSpirits.textContent = spiritsGained;
 }
 
@@ -1297,6 +1323,7 @@ async function doPrestige() { // Changed to async to handle potential async dona
         spiritsGained = Math.floor(spiritsGained * (1 + spiritBonus));
     }
 
+    gameState.lastPrestigeGainedSpirits = spiritsGained;
     gameState.swordSpirit += spiritsGained;
 
     // Reset progress
@@ -1486,7 +1513,7 @@ window.upgradeCharacter = function (id) {
         gameState.characterLevels[id] = level + 1;
         updateUI();
         updateCharactersUI();
-        saveGame();
+        saveGame(true);
         alert(`✨ تم تطوير ${Characters[id].nameAr} إلى المستوى ${level + 1}!`);
     } else {
         alert("💎 لا تملك أحجار أساطير كافية للتطوير!");
@@ -1500,7 +1527,7 @@ window.buyCharacter = function (id) {
         gameState.ownedCharacters.push(id);
         updateUI();
         updateCharactersUI();
-        saveGame();
+        saveGame(true);
         alert(`🎉 تم شراء ${char.nameAr} بنجاح!`);
     } else {
         alert("💎 لا تملك أحجار أساطير كافية! اهزم الزعماء (كل 10 موجات) للحصول عليها.");
@@ -1511,7 +1538,7 @@ window.setActiveCharacter = function (id) {
     gameState.activeCharacter = id;
     updateUI();
     updateCharactersUI();
-    saveGame();
+    saveGame(true);
 };
 
 // =====================================================
@@ -2031,7 +2058,16 @@ function saveGame(forceCloud = false) {
                 // Include player name, equipment, and character in cloud data
                 const cloudData = {
                     ...gameState,
-                    playerName: playerName,
+                    playerName: gameState.playerName || playerName, // Prefer gameState version
+                    wave: gameState.wave, // Explicitly save current wave
+                    stats: gameState.stats, // Save statistics (includes highest wave)
+                    gold: gameState.gold,
+                    gems: gameState.gems,
+                    upgrades: gameState.upgrades,
+                    characterLevels: gameState.characterLevels,
+                    ownedCharacters: gameState.ownedCharacters,
+                    materials: gameState.materials,
+                    inventory: gameState.inventory,
                     equipment: gameState.equipment,
                     activeCharacter: gameState.activeCharacter
                 };
@@ -2076,6 +2112,8 @@ function loadGame() {
         if (gameState.settings.autoSellCommon === undefined) gameState.settings.autoSellCommon = false;
         if (!gameState.allianceUpgrades) gameState.allianceUpgrades = {};
         if (!gameState.allianceGemUpgrades) gameState.allianceGemUpgrades = {};
+        if (gameState.prestigePreviewSpirits === undefined) gameState.prestigePreviewSpirits = 0;
+        if (gameState.lastPrestigeGainedSpirits === undefined) gameState.lastPrestigeGainedSpirits = 0;
 
         recalculatePlayerStats();
     } else {
@@ -2129,6 +2167,11 @@ function setupEventListeners() {
             el.addEventListener(event, callback);
         }
     };
+
+    // Save on close
+    window.addEventListener('beforeunload', () => {
+        saveGame(true);
+    });
 
     // Anvil click
     addSafeListener(DOM.anvil, 'click', handleAnvilClick);
@@ -2437,7 +2480,7 @@ function updateMissionsUI() {
                 gameState.stats.totalGems = (gameState.stats.totalGems || 0) + reward;
                 updateUI();
                 updateMissionsUI();
-                saveGame();
+                saveGame(true);
             }
         });
     });
