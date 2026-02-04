@@ -91,6 +91,38 @@ const ArenaSystem = {
         // Fetch current champion
         this.fetchChampion();
         setInterval(() => this.fetchChampion(), 60000); // Poll every minute
+
+        // Fetch Alliance Data & Start Polling
+        this.refreshAllianceData();
+        setInterval(() => this.refreshAllianceData(), 30000); // Poll every 30 seconds
+    },
+
+    allianceDataCache: null,
+    lastAllianceFetch: 0,
+
+    refreshAllianceData: async function () {
+        if (!gameState.allianceId || !db) return;
+
+        try {
+            const doc = await db.collection("alliances").doc(gameState.allianceId).get();
+            if (doc.exists) {
+                const data = doc.data();
+                this.allianceDataCache = data;
+
+                // Update GameState critical data
+                gameState.allianceUpgrades = data.upgrades || {};
+                gameState.allianceGemUpgrades = data.gemUpgrades || {};
+
+                // Update UI if open
+                const activeView = document.getElementById('active-alliance-view');
+                if (activeView && !activeView.classList.contains('hidden')) {
+                    this.updateAllianceUI();
+                }
+            } else {
+                // Player has an ID but alliance inactive/deleted?
+                // handle graceful degradation?
+            }
+        } catch (e) { console.error("Alliance Sync Error:", e); }
     },
 
     isArenaOpen: function () {
@@ -888,8 +920,9 @@ const ArenaSystem = {
                                 div.style.padding = "5px";
                                 div.style.borderBottom = "1px solid #333";
                                 const isMemberLeader = memberId === data.leaderId;
+                                const displayName = isMemberLeader ? (data.leaderName || 'القائد') : `عضو (${memberId.substr(0, 5)}...)`;
                                 div.innerHTML = `
-                                    <span>${isMemberLeader ? '👑القائد' : '👤 عضو'} (${memberId.substr(0, 5)}...)</span>
+                                    <span>${isMemberLeader ? '👑 ' : '👤 '}${displayName}</span>
                                     ${isLeader && !isMemberLeader ? `<button onclick="ArenaSystem.transferLeadership('${memberId}')" style="margin-inline-start: 8px; padding: 3px 6px; background: #f39c12; border: none; border-radius: 4px; color: #111; font-size: 0.7rem; cursor: pointer;">تحويل القيادة</button>` : ''}
                                 `;
                                 membersList.appendChild(div);
@@ -905,12 +938,24 @@ const ArenaSystem = {
     searchAlliances: async function () {
         if (!db) return;
         const list = document.getElementById('alliance-search-list');
+        const searchInput = document.getElementById('alliance-search-input');
         if (!list) return;
 
         list.innerHTML = "جاري البحث...";
+        const searchTerm = searchInput ? searchInput.value.trim() : "";
 
         try {
-            const snapshot = await db.collection("alliances").limit(20).get();
+            let query = db.collection("alliances").limit(20);
+
+            if (searchTerm) {
+                // Prefix search
+                query = db.collection("alliances")
+                    .where('name', '>=', searchTerm)
+                    .where('name', '<=', searchTerm + '\uf8ff')
+                    .limit(20);
+            }
+
+            const snapshot = await query.get();
             list.innerHTML = "";
 
             if (snapshot.empty) {
@@ -1097,8 +1142,8 @@ const ArenaSystem = {
     // --- ALLIANCE FEATURES (Donations, Upgrades, War) ---
 
     donateToAlliance: async function () {
-        const amount = parseInt(prompt("كم تريد التبرع؟ (الحد الأدنى 1000 ذهب)", "1000"));
-        if (!amount || amount < 1000) return;
+        const amount = parseInt(prompt("كم تريد التبرع؟ (الحد الأدنى 1 ذهب)", "100"));
+        if (!amount || amount < 1) return;
 
         if (gameState.gold < amount) {
             alert("⚠️ لا تملك ذهباً كافياً!");
@@ -1129,8 +1174,8 @@ const ArenaSystem = {
     },
 
     donateGemsToAlliance: async function () {
-        const amount = parseInt(prompt("كم تريد التبرع؟ (الحد الأدنى 10 جواهر)", "10"));
-        if (!amount || amount < 10) return;
+        const amount = parseInt(prompt("كم تريد التبرع؟ (الحد الأدنى 1 جوهرة)", "10"));
+        if (!amount || amount < 1) return;
 
         if (gameState.gems < amount) {
             alert("⚠️ لا تملك جواهر كافية!");
@@ -1440,3 +1485,4 @@ const ArenaSystem = {
 };
 
 window.ArenaSystem = ArenaSystem;
+window.AllianceConfig = AllianceConfig;

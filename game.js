@@ -351,9 +351,9 @@ function getAllianceUpgradeLevel(type) {
 }
 
 function getAllianceBonus(type) {
-    if (!window.AllianceConfig || !AllianceConfig.UPGRADES || !AllianceConfig.UPGRADES[type]) return 0;
+    if (!window.AllianceConfig || !window.AllianceConfig.UPGRADES || !window.AllianceConfig.UPGRADES[type]) return 0;
     const level = getAllianceUpgradeLevel(type);
-    return level * AllianceConfig.UPGRADES[type].bonusPerLevel;
+    return level * window.AllianceConfig.UPGRADES[type].bonusPerLevel;
 }
 
 function getAllianceGemUpgradeLevel(type) {
@@ -361,9 +361,9 @@ function getAllianceGemUpgradeLevel(type) {
 }
 
 function getAllianceGemBonus(type) {
-    if (!window.AllianceConfig || !AllianceConfig.GEM_UPGRADES || !AllianceConfig.GEM_UPGRADES[type]) return 0;
+    if (!window.AllianceConfig || !window.AllianceConfig.GEM_UPGRADES || !window.AllianceConfig.GEM_UPGRADES[type]) return 0;
     const level = getAllianceGemUpgradeLevel(type);
-    return level * AllianceConfig.GEM_UPGRADES[type].bonusPerLevel;
+    return level * window.AllianceConfig.GEM_UPGRADES[type].bonusPerLevel;
 }
 
 function getSharpenerBonusPercent() {
@@ -390,6 +390,11 @@ function recalculatePlayerStats() {
     }
 
     gameState.maxHp = baseHp;
+
+    // Prestige Bonus: +1% HP per Spirit Point
+    const spiritBonus = 1 + (gameState.swordSpirit / 100);
+    gameState.maxHp = Math.floor(gameState.maxHp * spiritBonus);
+
     gameState.defense = baseDef;
 
     // Cap current HP
@@ -415,6 +420,10 @@ function handleAnvilClick() {
 
     gameState.smithingPoints += pointsGained;
     gameState.stats.totalClicks++;
+
+    if (window.MissionsSystem) {
+        MissionsSystem.updateProgress('clicks', 1);
+    }
 
     // Visual feedback
     showClickFeedback(pointsGained);
@@ -547,6 +556,14 @@ function craftItem() {
     item.sellValue = Math.floor((item.damage || item.hp / 5) * 2 * tierConfig.sellMultiplier);
 
     gameState.stats.totalSwords++; // Keeping the stat name
+
+    if (window.MissionsSystem) {
+        MissionsSystem.updateProgress('swords', 1);
+        if (['rare', 'epic', 'legendary', 'mythic'].includes(rarity)) {
+            MissionsSystem.updateProgress('rare_sword', 1);
+        }
+    }
+
     if (item.damage && item.damage > gameState.stats.bestSwordDamage) {
         gameState.stats.bestSwordDamage = item.damage;
     }
@@ -715,6 +732,10 @@ function handleRockClick() {
         const amount = 1;
         gameState.materials[type] += amount;
         droppedMat = { type, amount };
+
+        if (window.MissionsSystem) {
+            MissionsSystem.updateProgress('mining', 1);
+        }
     }
 
     // Visuals
@@ -875,6 +896,10 @@ function attackEnemy() {
 
     // Alliance War Temple: global damage bonus
     damage = Math.floor(damage * (1 + getAllianceBonus('war_temple')));
+
+    // Prestige Bonus: +1% Damage per Spirit Point
+    const prestigeBonus = 1 + (gameState.swordSpirit / 100);
+    damage = Math.floor(damage * prestigeBonus);
 
     // Berserker Buff: Damage Multiplier
     if (gameState.activeCharacter === 'berserker') {
@@ -1107,8 +1132,17 @@ function defeatEnemy() {
     // Show loot
     showLoot(goldReward, materialDrop);
 
+    // Update Missions
+    if (window.MissionsSystem) {
+        MissionsSystem.updateProgress('enemies', 1);
+        MissionsSystem.updateProgress('gold', goldReward);
+    }
+
     // Next wave
     gameState.wave++;
+    if (window.MissionsSystem) {
+        MissionsSystem.updateProgress('wave', gameState.wave, true);
+    }
     if (gameState.wave > gameState.stats.highestWave) {
         gameState.stats.highestWave = gameState.wave;
     }
@@ -1222,8 +1256,34 @@ function updatePrestigeAvailability() {
     DOM.gainedSpirits.textContent = spiritsGained;
 }
 
-function doPrestige() {
+async function doPrestige() { // Changed to async to handle potential async donation
     if (gameState.wave < 50) return;
+
+    // Check for Alliance Donation
+    if (gameState.allianceId && gameState.gold > 0) {
+        if (confirm(`🛡️ هل تريد التبرع بكل ذهبك (${gameState.gold.toLocaleString()}) للتحالف قبل الصعود؟\n\nاضغط "موافق" للتبرع ودعم تحالفك.\nاضغط "إلغاء" للصعود دون تبرع.`)) {
+            if (window.ArenaSystem && ArenaSystem.donateToAlliance) {
+                // Determine donation amount
+                const donationAmount = gameState.gold;
+
+                // Directly update alliance funds (simplified without prompt)
+                try {
+                    if (typeof db !== 'undefined') {
+                        const ref = db.collection("alliances").doc(gameState.allianceId);
+                        await ref.update({
+                            funds: firebase.firestore.FieldValue.increment(donationAmount)
+                        });
+                        alert(`💰 تم التبرع بـ ${donationAmount.toLocaleString()} ذهب للتحالف!`);
+                    } else {
+                        console.error("Database not initialized");
+                    }
+                } catch (e) {
+                    console.error("Donation failed:", e);
+                    alert("⚠️ حدث خطأ أثناء التبرع، سيتم المتابعة للصعود.");
+                }
+            }
+        }
+    }
 
     // Calculate spirits gained
     let spiritsGained = Math.floor(gameState.wave / 10);
@@ -1244,10 +1304,6 @@ function doPrestige() {
     gameState.smithingPoints = 0;
     gameState.clickPower = 1;
     gameState.autoClickPower = 0;
-    gameState.gold = 0;
-    gameState.smithingPoints = 0;
-    gameState.clickPower = 1;
-    gameState.autoClickPower = 0;
     gameState.upgrades = { hammer: 1, bellows: 0, sharpener: 0, furnace: 0, pickaxe: 1 };
     gameState.materials = { iron: 0, steel: 0, obsidian: 0, dragonBone: 0, starMetal: 0 };
     gameState.inventory = [];
@@ -1263,7 +1319,7 @@ function doPrestige() {
     saveGame(true);
 
     // Visual feedback
-    alert('🌟 تم الصعود! حصلت على ' + spiritsGained + ' روح سيف!');
+    alert('🌟 تم الصعود! حصلت على ' + spiritsGained + ' روح سيف!\n💪 زادت قوتك وصحتك بنسبة ' + (gameState.swordSpirit) + '%');
 }
 
 // =====================================================

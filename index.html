@@ -760,6 +760,13 @@
                         </div>
                         <hr>
                         <h4>البحث عن تحالف</h4>
+                        <div class="alliance-search-box" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <input type="text" id="alliance-search-input" placeholder="بحث عن اسم التحالف..."
+                                style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #555; background: rgba(0,0,0,0.2); color: white;">
+                            <button onclick="ArenaSystem.searchAlliances()"
+                                style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍
+                                بحث</button>
+                        </div>
                         <div class="alliance-list-container" id="alliance-search-list">
                             <!-- List of alliances will appear here -->
                         </div>
