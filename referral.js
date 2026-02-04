@@ -60,8 +60,20 @@ const ReferralSystem = {
     // جلب وإعطاء الجوائز للداعي (عندما يفتح اللعبة)
     checkRewardsForReferrer: async function () {
         if (!db) return;
+
+        // Security check: Must be authenticated to read referrals
+        const currentUser = firebase.auth().currentUser;
+        if (!currentUser) return; // Silent return if not logged in
+
         const player = LeaderboardSystem.getPlayer();
         if (!player) return;
+
+        // Ensure we are querying for our OWN auth ID, otherwise rules will fail
+        if (player.id !== currentUser.uid) {
+            console.log("ReferralSystem: Player ID mismatch with Auth ID, skipping check.");
+            // Optionally we could force sync here, but let's just skip to avoid errors
+            return;
+        }
 
         try {
             // البحث عن إحالات لم يتم استلام جوائزها بعد

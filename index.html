@@ -112,6 +112,19 @@
                     <h2>الحدادة</h2>
                 </div>
 
+                <!-- Smithing Stats at Top -->
+                <div class="smithing-stats">
+                    <div class="points-display">
+                        <span class="label">نقاط الحدادة</span>
+                        <span class="value" id="smithing-points">0</span>
+                    </div>
+                    <div class="click-power">
+                        <span class="label">قوة النقر</span>
+                        <span class="value" id="click-power">1</span>
+                    </div>
+                </div>
+
+                <!-- Anvil - Moved here after stats -->
                 <div class="anvil-container">
                     <div class="anvil" id="anvil">
                         <div class="anvil-glow"></div>
@@ -125,17 +138,7 @@
                         data-i18n="click_to_hit">اضغط للطرق!</div>
                 </div>
 
-                <div class="smithing-stats">
-                    <div class="points-display">
-                        <span class="label">نقاط الحدادة</span>
-                        <span class="value" id="smithing-points">0</span>
-                    </div>
-                    <div class="click-power">
-                        <span class="label">قوة النقر</span>
-                        <span class="value" id="click-power">1</span>
-                    </div>
-                </div>
-
+                <!-- Progress Bar -->
                 <div class="progress-section">
                     <div class="progress-label">
                         <span>تقدم الصهر</span>
@@ -151,15 +154,15 @@
                 <div class="craft-section">
                     <div class="craft-section-title">اختر فئة الصنع</div>
                     <div class="category-selection" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <button class="category-btn active" data-category="weapon"
-                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ffd700; background: rgba(255,215,0,0.1); color: #fff; cursor: pointer;">⚔️
-                            سلاح</button>
-                        <button class="category-btn" data-category="body"
-                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">🛡️
-                            درع</button>
                         <button class="category-btn" data-category="head"
                             style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">🪖
                             خوذة</button>
+                        <button class="category-btn" data-category="body"
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer;">🛡️
+                            درع</button>
+                        <button class="category-btn active" data-category="weapon"
+                            style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ffd700; background: rgba(255,215,0,0.1); color: #fff; cursor: pointer;">⚔️
+                            سلاح</button>
                     </div>
                 </div>
 
@@ -171,21 +174,14 @@
                     </div>
                 </div>
 
+                <!-- Craft Button -->
                 <div class="action-buttons">
                     <button class="craft-btn" id="craft-btn" disabled>
                         <div class="btn-content">
                             <span class="icon">⚒️</span>
                             <span class="text" data-i18n="craft_btn">اصنع</span>
                         </div>
-                        <div class="btn-cost">10 SP</div>
-                    </button>
-
-                    <button class="craft-btn luck-btn" id="luck-btn" onclick="refineMaterials()">
-                        <div class="btn-content">
-                            <span class="icon">🎲</span>
-                            <span class="text" data-i18n="luck_btn">تكرير</span>
-                        </div>
-                        <div class="btn-cost">100 Mat</div>
+                        <div class="btn-cost">100 SP</div>
                     </button>
                 </div>
 
@@ -231,6 +227,13 @@
                     <div class="warrior" id="warrior">
                         <div class="character-sprite">🧙‍♂️</div>
                         <div class="character-name">السياف</div>
+                        <div class="enemy-hp-bar">
+                            <div class="hp-fill" id="player-hp-fill"
+                                style="background: linear-gradient(90deg, #2ecc71, #27ae60);"></div>
+                        </div>
+                        <div class="hp-text">
+                            <span id="player-hp">100</span>/<span id="player-max-hp">100</span>
+                        </div>
                     </div>
 
                     <div class="battle-effects" id="battle-effects"></div>
@@ -895,12 +898,12 @@
     <div class="modal hidden" id="craft-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>سيف جديد!</h3>
+                <h3 id="modal-title">سيف جديد!</h3>
             </div>
             <div class="modal-body">
                 <div class="new-sword" id="new-sword">
                     <div class="sword-rarity" id="modal-rarity">عادي</div>
-                    <div class="sword-icon">🗡️</div>
+                    <div class="sword-icon" id="modal-icon">🗡️</div>
                     <div class="sword-name" id="modal-sword-name">سيف حديدي</div>
                     <div class="sword-stats-modal">
                         <div class="stat-row" id="modal-damage-row">
@@ -1129,6 +1132,80 @@
                             <button id="gift-armor-btn"
                                 style="flex: 1; background: #3498db; color: #fff; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">🛡️
                                 درع عشوائي</button>
+                        </div>
+                    </div>
+
+                    <!-- Send Weapon to Player (NEW) -->
+                    <div class="admin-section"
+                        style="background: rgba(46,204,113,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid rgba(46,204,113,0.3);">
+                        <h4 style="color: #2ecc71; margin-bottom: 12px;">⚔️ إهداء سلاح للاعبين</h4>
+
+                        <!-- Player Selection -->
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem;">اختر
+                                اللاعب:</label>
+                            <select id="weapon-gift-player-select"
+                                style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                                <option value="">جاري التحميل...</option>
+                            </select>
+                        </div>
+
+                        <!-- Weapon Configuration -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem;">النوع:</label>
+                                <select id="weapon-gift-category"
+                                    style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                                    <option value="weapon">⚔️ سلاح</option>
+                                    <option value="body">🛡️ درع</option>
+                                    <option value="head">🪖 خوذة</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem;">الندرة:</label>
+                                <select id="weapon-gift-rarity"
+                                    style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                                    <option value="common">⚪ عادي</option>
+                                    <option value="rare">🔵 نادر</option>
+                                    <option value="epic">🟣 ملحمي</option>
+                                    <option value="legendary" selected>🟡 أسطوري</option>
+                                    <option value="mythic">🔴 خرافي</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="margin-bottom: 10px;">
+                            <label
+                                style="display: block; margin-bottom: 5px; color: #aaa; font-size: 0.85rem;">المستوى:</label>
+                            <select id="weapon-gift-tier"
+                                style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(30,30,30,0.9); color: #fff;">
+                                <option value="basic">أساسي</option>
+                                <option value="iron">حديد</option>
+                                <option value="steel">فولاذي</option>
+                                <option value="obsidian">سبجي</option>
+                                <option value="dragon" selected>تنيني</option>
+                                <option value="star">نجمي</option>
+                            </select>
+                        </div>
+
+                        <button id="send-weapon-to-player-btn"
+                            style="width: 100%; background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                            🎁 إرسال الهدية
+                        </button>
+
+                        <div style="margin-top: 10px;">
+                            <button id="refresh-weapon-players-btn"
+                                style="width: 100%; background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid #3498db; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                🔄 تحديث قائمة اللاعبين
+                            </button>
+                        </div>
+
+                        <!-- Players List Display -->
+                        <div id="weapon-admin-players-list"
+                            style="margin-top: 15px; max-height: 200px; overflow-y: auto;">
+                            <!-- Players will be populated here -->
                         </div>
                     </div>
 

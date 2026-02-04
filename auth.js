@@ -163,7 +163,16 @@ const AuthService = {
     },
 
     logout: function () {
-        firebase.auth().signOut();
+        firebase.auth().signOut().then(() => {
+            console.log("User signed out. Resetting game state.");
+            if (typeof resetGame === 'function') {
+                resetGame();
+            } else {
+                // Fallback if resetGame is not available
+                localStorage.removeItem(this.saveKey || 'bladeWeaver_save');
+                window.location.reload();
+            }
+        });
     },
 
     handleFirstTimeSync: async function (user) {
@@ -199,7 +208,7 @@ const AuthService = {
 
             // Sync player name if exists in cloud
             if (cloudData.playerName && window.LeaderboardSystem) {
-                window.LeaderboardSystem.initPlayer(cloudData.playerName);
+                window.LeaderboardSystem.initPlayer(cloudData.playerName, user.uid);
                 if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
             }
 
@@ -248,7 +257,7 @@ const AuthService = {
 
                     // Sync player name if exists in cloud
                     if (cloudData.playerName && window.LeaderboardSystem) {
-                        window.LeaderboardSystem.initPlayer(cloudData.playerName);
+                        window.LeaderboardSystem.initPlayer(cloudData.playerName, uid);
                         if (window.setLocalPlayerName) window.setLocalPlayerName(cloudData.playerName);
                     }
 

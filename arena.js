@@ -45,6 +45,10 @@ const ArenaSystem = {
                 highestStreak: 0
             };
         }
+
+        // Fetch current champion
+        this.fetchChampion();
+        setInterval(() => this.fetchChampion(), 60000); // Poll every minute
     },
 
     isArenaOpen: function () {
@@ -386,9 +390,19 @@ const ArenaSystem = {
         updateUI();
         saveGame();
 
-        alert(`🎉 انتصار ساحق!\n\n` +
-            `+25 نقطة تصنيف\n` +
-            `السلسلة: ${gameState.arenaStats.winStreak} 🔥${bonusReward}`);
+        this.showResultModal('🎉 انتصار ساحق!', `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
+                <div style="color: #2ecc71; font-weight: bold; margin-bottom: 5px;">+25 نقطة تصنيف</div>
+                <div style="color: #e67e22; font-weight: bold;">السلسلة: ${gameState.arenaStats.winStreak} 🔥</div>
+                ${bonusReward ? `<div style="margin-top: 10px; padding: 10px; background: rgba(255,215,0,0.1); border-radius: 5px; color: #ffd700;">${bonusReward}</div>` : ''}
+            </div>
+        `, true);
+
+        // Update Champion Title
+        if (db) {
+            this.updateChampion(gameState.arenaStats.winStreak);
+        }
     },
 
     handleDefeat: function (opponent) {
@@ -428,7 +442,105 @@ const ArenaSystem = {
             message += `\n\n⚠️ فقدت: ${lostItem.name}\n${opponent.name} استحوذ عليه!`;
         }
 
-        alert(message);
+        this.showResultModal('💔 هزيمة مؤلمة!', `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">☠️</div>
+                <div style="color: #e74c3c; font-weight: bold; margin-bottom: 5px;">-10 نقاط تصنيف</div>
+                <div style="color: #aaa;">انقطعت السلسلة</div>
+                ${lostItem ? `
+                    <div style="margin-top: 15px; padding: 10px; background: rgba(231,76,60,0.2); border: 1px solid #c0392b; border-radius: 5px;">
+                        <div style="font-weight: bold; color: #e74c3c; margin-bottom: 5px;">⚠️ فقدت معدات!</div>
+                        <div style="color: #fff;">${lostItem.name}</div>
+                        <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">${opponent.name} استحوذ عليه!</div>
+                    </div>
+                ` : ''}
+            </div>
+        `, false);
+    },
+
+    showResultModal: function (title, contentHTML, isVictory) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px; border: 2px solid ${isVictory ? '#2ecc71' : '#e74c3c'};">
+                <div class="modal-header">
+                    <h3 style="color: ${isVictory ? '#2ecc71' : '#e74c3c'};">${title}</h3>
+                </div>
+                <div class="modal-body">
+                    ${contentHTML}
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn" onclick="this.parentElement.parentElement.parentElement.remove()" style="background: ${isVictory ? '#2ecc71' : '#e74c3c'};">
+                        ${isVictory ? 'إغلاق 🎉' : 'إغلاق 😔'}
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    },
+
+    updateChampion: async function (streak) {
+        if (!db) return;
+        try {
+            const ref = db.collection('system').doc('arena_champion');
+            const doc = await ref.get();
+
+            let shouldUpdate = false;
+
+            if (!doc.exists) {
+                shouldUpdate = true;
+            } else {
+                const data = doc.data();
+                // Update if it's been more than 24 hours OR if it's me updating my own streak
+                const now = Date.now();
+                const isExpired = (now - data.timestamp) > 24 * 60 * 60 * 1000;
+                const isMe = data.id === LeaderboardSystem.getPlayer().id;
+
+                // Logic: "Winner stays for one day, if someone else wins it changes"
+                // Interpretation: Any win overwrites the previous winner regardless of time? 
+                // OR: Winner stays for 24 hours locked, unless someone else wins? 
+                // "stays for one day and if someone else wins it changes by new name"
+                // This implies a "King of the Hill" where the latest winner becomes the champion.
+                // But "stays for one day" suggests an expiry.
+
+                // Let's implement: Any win makes you champion. The "one day" is just a duration of display validity.
+                shouldUpdate = true;
+            }
+
+            if (shouldUpdate) {
+                await ref.set({
+                    id: LeaderboardSystem.getPlayer().id,
+                    name: LeaderboardSystem.getPlayer().name,
+                    streak: streak,
+                    timestamp: Date.now()
+                });
+                this.fetchChampion(); // Refresh UI immediately
+            }
+        } catch (e) { console.error("Champion update failed", e); }
+    },
+
+    fetchChampion: async function () {
+        if (!db) return;
+        try {
+            const doc = await db.collection('system').doc('arena_champion').get();
+            const banner = document.getElementById('arena-champion-banner');
+            const nameEl = document.getElementById('arena-champion-name');
+
+            if (doc.exists && banner && nameEl) {
+                const data = doc.data();
+                const now = Date.now();
+                // Check if expired (24 hours)
+                if ((now - data.timestamp) < 24 * 60 * 60 * 1000) {
+                    nameEl.textContent = data.name;
+                    banner.style.display = 'block';
+                } else {
+                    banner.style.display = 'none';
+                }
+            } else {
+                if (banner) banner.style.display = 'none';
+            }
+        } catch (e) { console.error("Champion fetch failed", e); }
     },
 
     generateStreakReward: function (minRarity) {

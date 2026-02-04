@@ -165,13 +165,17 @@ body {
 /* Main Game Area */
 .game-main {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "left"
+        "right";
     gap: var(--spacing-lg);
     flex: 1;
 }
 
 /* Area Common Styles */
 .smithing-area,
+.tab-panels,
 .battle-area {
     background: var(--color-bg-glass);
     border: 1px solid var(--color-border);
@@ -181,6 +185,18 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+}
+
+.smithing-area {
+    grid-area: left;
+}
+
+.tab-panels {
+    grid-area: left;
+}
+
+.battle-area {
+    grid-area: right;
 }
 
 .area-title {
@@ -409,7 +425,6 @@ body {
 .luck-btn {
     background: linear-gradient(135deg, #4a00e0, #8e2de2);
     color: white;
-    margin-top: var(--spacing-sm);
     box-shadow: 0 0 15px rgba(138, 45, 226, 0.3);
 }
 
@@ -421,6 +436,16 @@ body {
     color: #e0e0e0;
 }
 
+/* Action Buttons Container - Centering Craft and Refine */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-md) 0;
+    width: 100%;
+}
+
 /* Equipped Sword */
 .equipped-sword {
     margin-top: auto;
@@ -429,6 +454,7 @@ body {
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
 }
+
 
 .sword-label {
     font-size: 0.85rem;
@@ -667,15 +693,6 @@ body {
     opacity: 1;
 }
 
-/* Tab Panels */
-.tab-panels {
-    background: var(--color-bg-glass);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-lg);
-    backdrop-filter: blur(10px);
-    min-height: 250px;
-}
 
 .tab-panel {
     display: none;
@@ -1313,6 +1330,42 @@ body {
 .mining-desc {
     font-size: 0.85rem;
     color: var(--text-secondary);
+}
+
+/* Admin Panel Responsive */
+@media (max-width: 768px) {
+    #admin-panel .admin-content {
+        flex-direction: column;
+    }
+
+    #admin-panel .admin-section {
+        width: 100%;
+    }
+
+    .game-main {
+        grid-template-columns: 1fr;
+    }
+
+    .game-header {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .header-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--spacing-sm);
+    }
+
+    .bottom-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .menu-tab {
+        flex-grow: 1;
+        min-width: 80px;
+    }
 }
 
 /* Animations */
@@ -2837,7 +2890,7 @@ body {
     }
 
     /* Fixed Bottom Navigation */
-    .menu-tabs {
+    .bottom-menu {
         position: fixed;
         bottom: 0;
         left: 0;
@@ -3355,11 +3408,73 @@ body {
     min-height: 90px;
     text-align: center;
 }
+
 /* Ad Container Safety */
 .ad-container {
     display: block;
     width: 100%;
     min-height: 50px;
-    background: rgba(0,0,0,0.1);
+    background: rgba(0, 0, 0, 0.1);
     overflow: hidden;
+}
+
+/* Damage number animation */
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-80px);
+        /* Increased float height */
+    }
+}
+
+.damage-number {
+    position: absolute;
+    font-weight: bold;
+    font-size: 1.8rem;
+    /* Slightly larger */
+    animation: floatUp 1s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    pointer-events: none;
+    z-index: 1000;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+}
+
+.player-damage {
+    color: #ff4d4d !important;
+}
+
+/* Ensure character containers are relative for absolute positioning of damage numbers */
+.warrior,
+.enemy {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: filter 0.2s ease;
+}
+
+/* Add a slight shake animation for hits */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+.shake {
+    animation: shake 0.2s ease-in-out;
 }

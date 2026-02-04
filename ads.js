@@ -63,12 +63,28 @@ const AdSystem = {
 
             setTimeout(() => {
                 overlay.classList.add('hidden');
-                this.giveReward(type);
+                // Simulate ad success (e.g., 90% chance of success)
+                const adWatchedSuccessfully = Math.random() > 0.1;
+
+                if (adWatchedSuccessfully) {
+                    this.giveReward(type);
+                } else {
+                    alert('⚠️ فشلت مشاهدة الإعلان. يرجى المحاولة مرة أخرى.');
+                }
                 this.updateAllUI();
-            }, 1000);
+            }, 1500); // Increased delay to feel more like a real ad
         } else {
-            this.giveReward(type);
-            this.updateAllUI();
+            // Fallback for when overlay doesn't exist, still simulate
+            console.log("Ad overlay not found, using fallback simulation.");
+            setTimeout(() => {
+                 const adWatchedSuccessfully = Math.random() > 0.1; // 90% success rate
+                 if (adWatchedSuccessfully) {
+                    this.giveReward(type);
+                } else {
+                    alert('⚠️ فشلت مشاهدة الإعلان. يرجى المحاولة مرة أخرى.');
+                }
+                this.updateAllUI();
+            }, 500);
         }
     },
 

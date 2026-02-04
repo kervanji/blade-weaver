@@ -80,6 +80,7 @@ const LeaderboardSystem = {
                 score: score,
                 wave: wave,
                 swordsForged: swordsForged,
+                swordSpirit: gameState.swordSpirit || 0, // نقاط الصعود
                 equipment: equipment || { head: null, body: null, weapon: null },
                 activeCharacter: activeCharacter || 'default',
                 inventory: inventory || [],
@@ -97,16 +98,39 @@ const LeaderboardSystem = {
         if (!db) return [];
 
         try {
+            // Fetch more players than needed to account for duplicates
             const snapshot = await db.collection("leaderboard")
-                .orderBy("score", "desc")
-                .limit(limit)
+                .orderBy("swordSpirit", "desc") // ترتيب حسب نقاط الصعود أولاً
+                .orderBy("score", "desc") // ثم حسب النقاط
+                .limit(limit * 3) // Fetch 3x the limit to be safe
                 .get();
 
             const players = [];
             snapshot.forEach(doc => {
                 players.push(doc.data());
             });
-            return players;
+
+            // Process to get unique players with their highest score
+            const uniquePlayers = {};
+            for (const player of players) {
+                if (!uniquePlayers[player.name] || player.score > uniquePlayers[player.name].score) {
+                    uniquePlayers[player.name] = player;
+                }
+            }
+
+            // Convert back to an array, sort by score, and take the top players
+            const sortedUniquePlayers = Object.values(uniquePlayers)
+                .sort((a, b) => {
+                    // ترتيب حسب نقاط الصعود أولاً
+                    if ((b.swordSpirit || 0) !== (a.swordSpirit || 0)) {
+                        return (b.swordSpirit || 0) - (a.swordSpirit || 0);
+                    }
+                    // ثم حسب النقاط
+                    return b.score - a.score;
+                })
+                .slice(0, limit);
+
+            return sortedUniquePlayers;
         } catch (error) {
             console.error("Error getting leaderboard:", error);
             return [];

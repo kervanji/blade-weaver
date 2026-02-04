@@ -84,7 +84,10 @@ var gameState = {
     claimedRewards: [],
     lastAdRewardTime: 0,
     lastFreeUpgradeTime: 0,
-    lastMegaAdChestTime: 0
+    lastMegaAdChestTime: 0,
+    settings: {
+        notificationsEnabled: true
+    }
 };
 
 const Characters = {
@@ -228,6 +231,9 @@ function initDOM() {
         enemyHpFill: document.getElementById('enemy-hp-fill'),
         enemyHp: document.getElementById('enemy-hp'),
         enemyMaxHp: document.getElementById('enemy-max-hp'),
+        playerHpFill: document.getElementById('player-hp-fill'),
+        playerHp: document.getElementById('player-hp'),
+        playerMaxHp: document.getElementById('player-max-hp'),
         battleEffects: document.getElementById('battle-effects'),
         lootItems: document.getElementById('loot-items'),
 
@@ -241,6 +247,7 @@ function initDOM() {
         // Menu tabs
         menuTabs: document.querySelectorAll('.menu-tab'),
         tabPanels: document.querySelectorAll('.tab-panel'),
+        tabPanelsContainer: document.querySelector('.tab-panels'),
 
         // Shop upgrades
         hammerLevel: document.getElementById('hammer-level'),
@@ -281,6 +288,8 @@ function initDOM() {
         newSword: document.getElementById('new-sword'),
         modalRarity: document.getElementById('modal-rarity'),
         modalSwordName: document.getElementById('modal-sword-name'),
+        modalTitle: document.getElementById('modal-title'),
+        modalIcon: document.getElementById('modal-icon'),
         modalDamage: document.getElementById('modal-damage'),
         modalSpeed: document.getElementById('modal-speed'),
         modalCrit: document.getElementById('modal-crit'),
@@ -523,49 +532,66 @@ function generateSwordName(rarity, tier = 'basic') {
     return prefix + ' ' + suffix + ' (' + tierConfig.name + ')';
 }
 
-// Sell sword function
-function sellSword(swordId) {
-    const swordIndex = gameState.inventory.findIndex(s => s.id === swordId);
-    if (swordIndex === -1) return;
+// Utility: Show Toast Notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'success' ? '#2ecc71' : type === 'warning' ? '#e67e22' : type === 'error' ? '#e74c3c' : type === 'gem' ? '#9b59b6' : '#3498db'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 9999;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        opacity: 0;
+        pointer-events: none;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
 
-    const sword = gameState.inventory[swordIndex];
+    // Animate in
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.bottom = '100px';
+    });
 
-    // Cannot sell equipped sword
-    if (gameState.equippedSword && gameState.equippedSword.id === swordId) {
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.bottom = '80px';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+window.sellAllUnused = function () {
+    const equippedIds = Object.values(gameState.equipment).filter(Boolean).map(item => item.id);
+    const unequippedItems = gameState.inventory.filter(item => !equippedIds.includes(item.id));
+
+    if (unequippedItems.length === 0) {
+        showToast("⚠️ لا توجد عناصر غير مجهزة لبيعها.", 'warning');
         return;
     }
 
-    // Calculate sell value
-    const sellValue = sword.sellValue || Math.floor(sword.damage * 2);
-    gameState.gold += sellValue;
-    gameState.stats.totalGold += sellValue;
+    let totalValue = unequippedItems.reduce((sum, item) => sum + (item.sellValue || 0), 0);
 
-    // Remove from inventory
-    gameState.inventory.splice(swordIndex, 1);
+    if (confirm(`هل أنت متأكد من بيع ${unequippedItems.length} عنصر مقابل ${formatNumber(totalValue)} ذهب؟`)) {
+        gameState.inventory = gameState.inventory.filter(item => equippedIds.includes(item.id));
+        gameState.gold += totalValue;
+        gameState.stats.totalGold += totalValue;
 
-    updateInventoryUI();
-    updateUI();
-    saveGame(true); // Force cloud save on sell
+        showToast(`💰 تم بيع ${unequippedItems.length} عنصر بنجاح!`, 'success');
+        updateInventoryUI();
+        updateUI();
+        saveGame(true);
+    }
 }
 
-// Sell all non-equipped swords
-function sellAllSwords() {
-    const equippedId = gameState.equippedSword ? gameState.equippedSword.id : null;
-    let totalValue = 0;
-
-    gameState.inventory = gameState.inventory.filter(sword => {
-        if (sword.id === equippedId) return true;
-        totalValue += sword.sellValue || Math.floor(sword.damage * 2);
-        return false;
-    });
-
-    gameState.gold += totalValue;
-    gameState.stats.totalGold += totalValue;
-
-    updateInventoryUI();
-    updateUI();
-    saveGame(true); // Force cloud save on sell all
-}
 
 // Select crafting tier
 function selectCraftTier(tier) {
@@ -697,9 +723,14 @@ function showNewItemModal(item) {
     const rarityConfig = RARITY[item.rarity];
     const categoryNames = { weapon: 'سلاح', body: 'درع', head: 'خوذة' };
 
+    const categoryTitles = { weapon: 'سيف جديد!', body: 'درع جديد!', head: 'خوذة جديدة!' };
+
     DOM.newSword.className = 'new-sword ' + rarityConfig.nameEn;
     DOM.modalRarity.textContent = rarityConfig.name + ' (' + categoryNames[item.category] + ')';
     DOM.modalSwordName.textContent = item.name;
+
+    if (DOM.modalTitle) DOM.modalTitle.textContent = categoryTitles[item.category] || 'عنصر جديد!';
+    if (DOM.modalIcon) DOM.modalIcon.textContent = getItemIcon(item);
 
     // Switch between damage/speed and HP/Def
     if (item.category === 'weapon') {
@@ -761,18 +792,17 @@ function closeModal() {
 // COMBAT SYSTEM
 // =====================================================
 function spawnEnemy() {
+    const isBoss = gameState.wave % 10 === 0;
     const enemyIndex = Math.min(Math.floor(gameState.wave / 10), ENEMIES.length - 1);
     const baseEnemy = ENEMIES[enemyIndex];
 
-    // Balanced Scaling: Linear early, Exponential later
-    const isBoss = gameState.wave % 10 === 0;
-    const waveMultiplier = Math.pow(1.1, gameState.wave) * (isBoss ? 4 : 1);
+    // Adjusted Scaling for smoother progression
+    const waveMultiplier = Math.pow(1.08, gameState.wave) * (isBoss ? 3.0 : 1); // Reduced from 1.1 and boss bonus from 4
     const hp = Math.floor(baseEnemy.baseHp * waveMultiplier);
 
-    // Enemy Damage Scaling - Forces armor upgrades
-    // Starts weak (5-10) but scales up to hundreds
+    // Enemy Damage Scaling - Slightly reduced for balance
     const baseDmg = 5;
-    const damageMultiplier = Math.pow(1.12, gameState.wave) * (isBoss ? 2 : 1);
+    const damageMultiplier = Math.pow(1.1, gameState.wave) * (isBoss ? 1.2 : 1); // Reduced from 1.12 and boss bonus from 2
     const damage = Math.floor(baseDmg * damageMultiplier);
 
     gameState.currentEnemy = {
@@ -831,21 +861,36 @@ function attackEnemy() {
 }
 
 function enemyAttackPlayer() {
-    if (!gameState.currentEnemy) return;
+    if (!gameState.currentEnemy || gameState.currentEnemy.hp <= 0) return;
 
     // Calculate Damage
     let enemyDmg = gameState.currentEnemy.damage || 10;
 
+    // Calculate player's total HP and defense
+    let maxHp = 100; // Base
+    let defense = 0;
+
+    const slots = ['head', 'body'];
+    slots.forEach(slot => {
+        const item = gameState.equipment[slot];
+        if (item) {
+            if (item.hp) maxHp += item.hp;
+            if (item.defense) defense += item.defense;
+        }
+    });
+
+    // Update global maxHp if changed by equipment
+    gameState.maxHp = maxHp;
+
     // Mitigate with defense (Simple mitigation: Damage - Defense)
-    // Minimum 1 damage (or 5% of enemy damage if defense is huge)
-    const mitigation = gameState.defense;
+    const mitigation = defense;
     let actualDmg = Math.max(Math.ceil(enemyDmg * 0.05), enemyDmg - mitigation);
 
     // Apply damage
-    gameState.hp -= actualDmg;
+    gameState.hp = Math.max(0, gameState.hp - actualDmg);
 
     // Show damage on player
-    showPlayerDamage(actualDmg);
+    showDamageEffect(actualDmg, true); // true = player takes damage
 
     // Check for death
     if (gameState.hp <= 0) {
@@ -854,6 +899,7 @@ function enemyAttackPlayer() {
 
     // Update UI
     updatePlayerHpUI();
+    saveGame();
 }
 
 function handlePlayerDeath() {
@@ -861,29 +907,25 @@ function handlePlayerDeath() {
     gameState.currentEnemy = null; // Remove enemy
 
     // Calculate fallback level (nearest 10)
-    // 33 -> 30, 28 -> 20, 8 -> 1 (min 1)
     let newWave = Math.floor(gameState.wave / 10) * 10;
     if (newWave < 1) newWave = 1;
-    // If we are exactly at a decade (e.g. 30), we fall back to 20? 
-    // User said "Lose at 33 go to 30", "Lose in 28 go to 20".
-    // If lose at 30? Usually means failing 30. So returning to 30 is just restarting.
-    // If I lose at 30, I should probably go to 20? 
-    // "Lose in 33 -> 30". "Lose in 28 -> 20".
-    // Let's stick to floor/10 * 10. If at 30, stay at 30.
-
-    if (newWave === 0) newWave = 1;
 
     const lostWave = gameState.wave;
     gameState.wave = newWave;
 
-    // Restore HP
-    gameState.hp = gameState.maxHp;
+    // Restore HP to full based on equipment
+    let totalHp = 100;
+    const slots = ['head', 'body'];
+    slots.forEach(slot => {
+        const item = gameState.equipment[slot];
+        if (item && item.hp) totalHp += item.hp;
+    });
+    gameState.hp = totalHp;
+    gameState.maxHp = totalHp;
 
     // Notifications
-    if (window.AdminSystem) {
+    if (window.AdminSystem && typeof AdminSystem.sendNotification === 'function') {
         AdminSystem.sendNotification(`💀 لقد قتلك الوحش! تراجعت من الموجة ${lostWave} إلى ${newWave}`, 'error');
-    } else {
-        alert(`💀 لقد قتلك الوحش! تراجعت من الموجة ${lostWave} إلى ${newWave}`);
     }
 
     // Reset combat
@@ -892,33 +934,80 @@ function handlePlayerDeath() {
     saveGame();
 }
 
-function showPlayerDamage(damage) {
-    // Show damage number near player HP bar or character
+function showDamageEffect(damage, isPlayer = false) {
+    const target = isPlayer ? DOM.warrior : DOM.enemy;
+    if (!target) return;
+
+    // Create damage number
     const damageEl = document.createElement('div');
-    damageEl.className = 'damage-number player-damage';
+    damageEl.className = 'damage-number' + (isPlayer ? ' player-damage' : '');
     damageEl.textContent = `-${damage}`;
-    damageEl.style.left = '20%';
-    damageEl.style.top = '40%';
-    damageEl.style.color = 'red';
+    damageEl.style.cssText = `
+        position: absolute;
+        color: ${isPlayer ? '#e74c3c' : '#f39c12'};
+        font-weight: bold;
+        font-size: 1.5rem;
+        animation: floatUp 1s ease-out;
+        pointer-events: none;
+        z-index: 1000;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    `;
 
-    document.querySelector('.battle-arena').appendChild(damageEl);
+    target.appendChild(damageEl);
 
+    // Flash effect
+    target.style.filter = 'brightness(1.5)';
     setTimeout(() => {
-        damageEl.classList.add('float-up');
-        setTimeout(() => damageEl.remove(), 800);
-    }, 50);
+        target.style.filter = '';
+    }, 200);
+
+    // Remove damage number after animation
+    setTimeout(() => {
+        damageEl.remove();
+    }, 1000);
 }
 
 function updatePlayerHpUI() {
     const hpFill = document.getElementById('player-hp-fill');
-    const hpText = document.getElementById('player-hp');
+    const hpCur = document.getElementById('player-hp');
+    const hpMax = document.getElementById('player-max-hp');
 
-    if (hpFill && hpText) {
-        const pct = Math.max(0, (gameState.hp / gameState.maxHp) * 100);
-        hpFill.style.width = pct + '%';
-        hpText.textContent = `${gameState.hp}/${gameState.maxHp}`;
+    // Recalculate maxHp just in case
+    let totalHp = 100;
+    const slots = ['head', 'body'];
+    slots.forEach(slot => {
+        const item = gameState.equipment[slot];
+        if (item && item.hp) totalHp += item.hp;
+    });
+    gameState.maxHp = totalHp;
+
+    // Smooth the hp bar
+    if (hpFill) {
+        const percent = Math.max(0, Math.min(100, (gameState.hp / gameState.maxHp) * 100));
+        hpFill.style.width = percent + '%';
+        // Dynamic color change based on health percentage
+        if (percent < 25) {
+            hpFill.style.background = 'linear-gradient(90deg, #ff4d4d, #b30000)';
+        } else if (percent < 50) {
+            hpFill.style.background = 'linear-gradient(90deg, #ffa500, #ff8c00)';
+        } else {
+            hpFill.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)';
+        }
     }
+
+    if (hpCur) hpCur.textContent = formatNumber(Math.max(0, Math.floor(gameState.hp)));
+    if (hpMax) hpMax.textContent = formatNumber(Math.floor(gameState.maxHp));
 }
+
+// Start enemy attack timer
+let enemyAttackInterval = null;
+function startBattleSystem() {
+    if (enemyAttackInterval) clearInterval(enemyAttackInterval);
+    enemyAttackInterval = setInterval(() => {
+        enemyAttackPlayer();
+    }, 3000);
+}
+
 function showDamageNumber(damage, isCrit) {
     const damageEl = document.createElement('div');
     damageEl.className = 'damage-number' + (isCrit ? ' crit' : '');
@@ -950,7 +1039,7 @@ function defeatEnemy() {
         if (Math.random() < 0.2) { // 20% chance for a Legend Gem
             gameState.gems += 1;
             gameState.stats.totalGems += 1;
-            showFloatingText("+1 💎 حجر أسطوري!", 'gem');
+            showToast("+1 💎 حجر أسطوري!", 'gem');
         }
     }
 
@@ -972,6 +1061,10 @@ function defeatEnemy() {
     if (gameState.wave > gameState.stats.highestWave) {
         gameState.stats.highestWave = gameState.wave;
     }
+
+    // Heal player on wave completion
+    gameState.hp = gameState.maxHp;
+    updatePlayerHpUI();
 
     // Check prestige availability
     updatePrestigeAvailability();
@@ -1081,7 +1174,7 @@ function doPrestige() {
 
     gameState.swordSpirit += spiritsGained;
 
-    // Reset progress but keep spirits
+    // Reset progress
     gameState.gold = 0;
     gameState.smithingPoints = 0;
     gameState.clickPower = 1;
@@ -1093,7 +1186,7 @@ function doPrestige() {
     gameState.upgrades = { hammer: 1, bellows: 0, sharpener: 0, furnace: 0, pickaxe: 1 };
     gameState.materials = { iron: 0, steel: 0, obsidian: 0, dragonBone: 0, starMetal: 0 };
     gameState.inventory = [];
-    gameState.equippedSword = null;
+    gameState.equipment = { head: null, body: null, weapon: null };
     gameState.wave = 1;
     gameState.currentEnemy = null;
 
@@ -1101,7 +1194,7 @@ function doPrestige() {
     spawnEnemy();
 
     updateUI();
-    saveGame();
+    saveGame(true);
 
     // Visual feedback
     alert('🌟 تم الصعود! حصلت على ' + spiritsGained + ' روح سيف!');
@@ -1156,16 +1249,48 @@ window.openChest = function (type) {
 };
 
 function switchTab(tabName) {
+    const smithingArea = document.querySelector('.smithing-area');
+    const battleArea = document.querySelector('.battle-area');
+    const tabPanelsContainer = document.querySelector('.tab-panels');
+
     DOM.menuTabs.forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === tabName);
     });
 
-    DOM.tabPanels.forEach(panel => {
-        panel.classList.toggle('active', panel.id === tabName + '-panel');
-    });
+    // Handle the smithing area and tab panels container visibility
+    if (tabName === 'smithing') {
+        smithingArea.style.display = 'flex';
+        if (DOM.tabPanelsContainer) DOM.tabPanelsContainer.style.display = 'none';
+        // Hide individual tab panels
+        DOM.tabPanels.forEach(panel => panel.classList.remove('active'));
+    } else {
+        // Hide smithing area
+        smithingArea.style.display = 'none';
+        if (DOM.tabPanelsContainer) DOM.tabPanelsContainer.style.display = 'block';
 
+        let targetPanelId = tabName + '-panel';
+
+        // Special handling for 'upgrades' tab which maps to 'shop-panel'
+        if (tabName === 'upgrades') {
+            targetPanelId = 'shop-panel';
+        }
+
+        DOM.tabPanels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === targetPanelId);
+        });
+    }
+
+    // Battle area should generally stay visible unless we are in a full-screen mode like Arena
+    // For now, we keep it visible as requested
+    battleArea.style.display = 'flex';
+
+    // Specific UI updates for certain tabs
     if (tabName === 'characters') {
         updateCharactersUI();
+    } else if (tabName === 'inventory') {
+        updateInventoryUI();
+    } else if (tabName === 'missions') {
+        if (window.Missions) Missions.render();
     }
 }
 
@@ -1271,6 +1396,17 @@ window.setActiveCharacter = function (id) {
 // UI UPDATE FUNCTIONS
 // =====================================================
 function updateUI() {
+    // Update notifications toggle
+    const notificationsToggle = document.getElementById('notifications-toggle');
+    if (notificationsToggle) {
+        if (gameState.settings) {
+            notificationsToggle.checked = gameState.settings.notificationsEnabled;
+        } else {
+            // Default to true if settings object doesn't exist
+            notificationsToggle.checked = true;
+        }
+    }
+
     // Header
     DOM.goldDisplay.textContent = formatNumber(gameState.gold);
     if (DOM.gemDisplay) DOM.gemDisplay.textContent = formatNumber(gameState.gems);
@@ -1309,7 +1445,8 @@ function updateUI() {
     updateInventoryUI();
 
     // Wave
-    DOM.waveNumber.textContent = gameState.wave;
+    if (!DOM.waveNumber) DOM.waveNumber = document.getElementById('current-wave');
+    if (DOM.waveNumber) DOM.waveNumber.textContent = gameState.wave;
 
     // Materials
     DOM.ironCount.textContent = formatNumber(gameState.materials.iron);
@@ -1401,8 +1538,24 @@ function updateEnemyUI() {
     }
 }
 
+
+
+
+
+let currentInventoryFilter = 'all';
+
 function updateInventoryUI() {
-    if (gameState.inventory.length === 0) {
+    const filteredInventory = currentInventoryFilter === 'all'
+        ? gameState.inventory
+        : gameState.inventory.filter(item => item.category === currentInventoryFilter);
+
+    if (filteredInventory.length === 0) {
+        let emptyMsg = "الحقيبة فارغة";
+        if (currentInventoryFilter !== 'all') {
+            const names = { weapon: 'سيوف', body: 'دروع', head: 'خوذ' };
+            emptyMsg = `لا توجد ${names[currentInventoryFilter]} في حقيبتك`;
+        }
+
         DOM.inventoryGrid.innerHTML = `
             <div class="empty-inventory" style="
                 text-align: center;
@@ -1414,7 +1567,7 @@ function updateInventoryUI() {
                 font-size: 1.1rem;
             ">
                 <div style="font-size: 4rem; margin-bottom: 15px;">📦</div>
-                <div style="font-weight: bold; margin-bottom: 8px;">الحقيبة فارغة</div>
+                <div style="font-weight: bold; margin-bottom: 8px;">${emptyMsg}</div>
                 <div style="font-size: 0.9rem; color: #aaa;">اصنع معداتك الأولى لتبدأ مغامرتك!</div>
             </div>
         `;
@@ -1426,7 +1579,7 @@ function updateInventoryUI() {
     // Check if item is equipped in any slot
     const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
 
-    gameState.inventory.forEach(item => {
+    filteredInventory.forEach(item => {
         const isEquipped = equippedIds.includes(item.id);
         const rarityConfig = RARITY[item.rarity];
 
@@ -1614,11 +1767,11 @@ window.equipItemById = function (id) {
     if (item) equipItem(item);
 };
 
-function sellSword(id) {
+window.sellSword = function (id) {
     // Check if equipped
     const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
     if (equippedIds.includes(id)) {
-        alert("⚠️ لا يمكنك بيع معدات مجهزة!");
+        showToast("⚠️ لا يمكنك بيع معدات مجهزة!", 'warning');
         return;
     }
 
@@ -1630,25 +1783,10 @@ function sellSword(id) {
     gameState.stats.totalGold += item.sellValue;
 
     gameState.inventory.splice(index, 1);
+
+    showToast(`💰 تم بيع ${item.name} مقابل ${formatNumber(item.sellValue)} ذهب`, 'success');
     updateUI();
-    saveGame(true); // Force cloud save
-}
-
-function sellAllSwords() {
-    const equippedIds = Object.values(gameState.equipment).filter(i => i).map(i => i.id);
-    let totalValue = 0;
-
-    gameState.inventory = gameState.inventory.filter(item => {
-        if (equippedIds.includes(item.id)) return true;
-        totalValue += item.sellValue;
-        return false;
-    });
-
-    gameState.gold += totalValue;
-    gameState.stats.totalGold += totalValue;
-
-    updateUI();
-    saveGame(true); // Force cloud save
+    saveGame(true);
 }
 
 // Update crafting UI to show material tier options
@@ -1883,6 +2021,10 @@ function setupEventListeners() {
     // Prestige button
     addSafeListener(DOM.prestigeBtn, 'click', doPrestige);
 
+    // Sell all unused button
+    const sellAllBtn = document.getElementById('sell-all-unused-btn');
+    addSafeListener(sellAllBtn, 'click', sellAllUnused);
+
     // Keyboard shortcut for clicking
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space' && DOM.craftModal && !DOM.craftModal.classList.contains('hidden')) {
@@ -1891,11 +2033,42 @@ function setupEventListeners() {
             handleAnvilClick();
         }
     });
+
+    // Inventory Filters
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.border = '1px solid #555';
+                b.style.background = 'rgba(255,255,255,0.05)';
+                b.style.color = '#ccc';
+            });
+            btn.classList.add('active');
+            btn.style.border = '1px solid #ffd700';
+            btn.style.background = 'rgba(255,215,0,0.1)';
+            btn.style.color = '#ffd700';
+            currentInventoryFilter = btn.dataset.filter;
+            updateInventoryUI();
+        });
+    });
+}
+
+// =====================================================
+// GAME RESET
+// =====================================================
+function resetGame() {
+    console.log("Resetting game state...");
+    // Clear the local save
+    localStorage.removeItem(SAVE_KEY);
+    // Reload the page to start fresh
+    window.location.reload();
 }
 
 // =====================================================
 // INITIALIZATION
 // =====================================================
+
 let playerName = null;
 
 // Helper to set player name from external scripts (like auth.js)
@@ -1903,22 +2076,8 @@ window.setLocalPlayerName = function (name) {
     playerName = name;
 };
 
-// Craft category selection
+// Craft category selection - will be initialized in DOMContentLoaded
 let selectedCategory = 'weapon';
-const categoryBtns = document.querySelectorAll('.category-btn');
-categoryBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        categoryBtns.forEach(b => {
-            b.classList.remove('active');
-            b.style.border = '1px solid rgba(255,255,255,0.2)';
-            b.style.background = 'rgba(255,255,255,0.05)';
-        });
-        btn.classList.add('active');
-        btn.style.border = '1px solid #ffd700';
-        btn.style.background = 'rgba(255,215,0,0.1)';
-        selectedCategory = btn.dataset.category;
-    });
-});
 
 function showNameModal() {
     console.log('showNameModal called');
@@ -2417,7 +2576,37 @@ window.refineMaterials = function () {
 
 // Start the game when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    const notificationsToggle = document.getElementById('notifications-toggle');
+    if (notificationsToggle) {
+        notificationsToggle.addEventListener('change', (e) => {
+            if (!gameState.settings) {
+                gameState.settings = { notificationsEnabled: true };
+            }
+            gameState.settings.notificationsEnabled = e.target.checked;
+            saveGame();
+        });
+    }
+
+    // Initialize category selection buttons
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    categoryBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            categoryBtns.forEach(b => {
+                b.classList.remove('active');
+                b.style.border = '1px solid rgba(255,255,255,0.2)';
+                b.style.background = 'rgba(255,255,255,0.05)';
+            });
+            btn.classList.add('active');
+            btn.style.border = '1px solid #ffd700';
+            btn.style.background = 'rgba(255,215,0,0.1)';
+            selectedCategory = btn.dataset.category;
+            console.log('Selected category:', selectedCategory); // Debug log
+        });
+    });
+
     initDOM();
     initGame();
-});
 
+    // Start battle system - enemy attacks player automatically
+    startBattleSystem();
+});
